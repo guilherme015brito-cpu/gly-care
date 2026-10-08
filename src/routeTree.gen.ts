@@ -10,33 +10,120 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShellRouteImport } from './routes/_shell'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ShellMonitorIndexRouteImport } from './routes/_shell.monitor.index'
+import { Route as ShellMonitorCetonasRouteImport } from './routes/_shell.monitor.cetonas'
+import { Route as ShellMonitorGlicemiaRouteImport } from './routes/_shell.monitor.glicemia'
+import { Route as ShellMonitorInsulinaIndexRouteImport } from './routes/_shell.monitor.insulina.index'
+import { Route as ShellMonitorInsulinaNovaRouteImport } from './routes/_shell.monitor.insulina.nova'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShellRoute = ShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShellMonitorIndexRoute = ShellMonitorIndexRouteImport.update({
+  id: '/monitor/',
+  path: '/monitor/',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellMonitorCetonasRoute = ShellMonitorCetonasRouteImport.update({
+  id: '/monitor/cetonas',
+  path: '/monitor/cetonas',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellMonitorGlicemiaRoute = ShellMonitorGlicemiaRouteImport.update({
+  id: '/monitor/glicemia',
+  path: '/monitor/glicemia',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellMonitorInsulinaIndexRoute =
+  ShellMonitorInsulinaIndexRouteImport.update({
+    id: '/monitor/insulina/',
+    path: '/monitor/insulina/',
+    getParentRoute: () => ShellRoute,
+  } as any)
+const ShellMonitorInsulinaNovaRoute =
+  ShellMonitorInsulinaNovaRouteImport.update({
+    id: '/monitor/insulina/nova',
+    path: '/monitor/insulina/nova',
+    getParentRoute: () => ShellRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/monitor/cetonas': typeof ShellMonitorCetonasRoute
+  '/monitor/glicemia': typeof ShellMonitorGlicemiaRoute
+  '/monitor/': typeof ShellMonitorIndexRoute
+  '/monitor/insulina/nova': typeof ShellMonitorInsulinaNovaRoute
+  '/monitor/insulina/': typeof ShellMonitorInsulinaIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/monitor/cetonas': typeof ShellMonitorCetonasRoute
+  '/monitor/glicemia': typeof ShellMonitorGlicemiaRoute
+  '/monitor': typeof ShellMonitorIndexRoute
+  '/monitor/insulina/nova': typeof ShellMonitorInsulinaNovaRoute
+  '/monitor/insulina': typeof ShellMonitorInsulinaIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_shell': typeof ShellRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_shell/monitor/cetonas': typeof ShellMonitorCetonasRoute
+  '/_shell/monitor/glicemia': typeof ShellMonitorGlicemiaRoute
+  '/_shell/monitor/': typeof ShellMonitorIndexRoute
+  '/_shell/monitor/insulina/nova': typeof ShellMonitorInsulinaNovaRoute
+  '/_shell/monitor/insulina/': typeof ShellMonitorInsulinaIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/monitor/cetonas'
+    | '/monitor/glicemia'
+    | '/monitor/'
+    | '/monitor/insulina/nova'
+    | '/monitor/insulina/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/monitor/cetonas'
+    | '/monitor/glicemia'
+    | '/monitor'
+    | '/monitor/insulina/nova'
+    | '/monitor/insulina'
+  id:
+    | '__root__'
+    | '/'
+    | '/_shell'
+    | '/auth'
+    | '/_shell/monitor/cetonas'
+    | '/_shell/monitor/glicemia'
+    | '/_shell/monitor/'
+    | '/_shell/monitor/insulina/nova'
+    | '/_shell/monitor/insulina/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ShellRoute: typeof ShellRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +135,80 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_shell': {
+      id: '/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_shell/monitor/': {
+      id: '/_shell/monitor/'
+      path: '/monitor'
+      fullPath: '/monitor/'
+      preLoaderRoute: typeof ShellMonitorIndexRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/monitor/cetonas': {
+      id: '/_shell/monitor/cetonas'
+      path: '/monitor/cetonas'
+      fullPath: '/monitor/cetonas'
+      preLoaderRoute: typeof ShellMonitorCetonasRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/monitor/glicemia': {
+      id: '/_shell/monitor/glicemia'
+      path: '/monitor/glicemia'
+      fullPath: '/monitor/glicemia'
+      preLoaderRoute: typeof ShellMonitorGlicemiaRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/monitor/insulina/': {
+      id: '/_shell/monitor/insulina/'
+      path: '/monitor/insulina'
+      fullPath: '/monitor/insulina/'
+      preLoaderRoute: typeof ShellMonitorInsulinaIndexRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/monitor/insulina/nova': {
+      id: '/_shell/monitor/insulina/nova'
+      path: '/monitor/insulina/nova'
+      fullPath: '/monitor/insulina/nova'
+      preLoaderRoute: typeof ShellMonitorInsulinaNovaRouteImport
+      parentRoute: typeof ShellRoute
+    }
   }
 }
 
+interface ShellRouteChildren {
+  ShellMonitorCetonasRoute: typeof ShellMonitorCetonasRoute
+  ShellMonitorGlicemiaRoute: typeof ShellMonitorGlicemiaRoute
+  ShellMonitorIndexRoute: typeof ShellMonitorIndexRoute
+  ShellMonitorInsulinaNovaRoute: typeof ShellMonitorInsulinaNovaRoute
+  ShellMonitorInsulinaIndexRoute: typeof ShellMonitorInsulinaIndexRoute
+}
+
+const ShellRouteChildren: ShellRouteChildren = {
+  ShellMonitorCetonasRoute: ShellMonitorCetonasRoute,
+  ShellMonitorGlicemiaRoute: ShellMonitorGlicemiaRoute,
+  ShellMonitorIndexRoute: ShellMonitorIndexRoute,
+  ShellMonitorInsulinaNovaRoute: ShellMonitorInsulinaNovaRoute,
+  ShellMonitorInsulinaIndexRoute: ShellMonitorInsulinaIndexRoute,
+}
+
+const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ShellRoute: ShellRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

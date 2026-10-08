@@ -1,0 +1,16 @@
+{
+  "name": "GlyCare — Diabetes Tipo 1",
+  "short_name": "GlyCare",
+  "description": "Acompanhamento familiar de diabetes tipo 1",
+  "lang": "pt-BR",
+  "start_url": "/monitor",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7fafa",
+  "theme_color": "#0f9488",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
