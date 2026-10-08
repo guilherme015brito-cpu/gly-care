@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ShellAlimentacaoIndexRouteImport } from './routes/_shell.alimentacao.index'
+import { Route as ShellAlimentacaoHistoricoRouteImport } from './routes/_shell.alimentacao.historico'
+import { Route as ShellAlimentacaoNovoRouteImport } from './routes/_shell.alimentacao.novo'
 import { Route as ShellMonitorIndexRouteImport } from './routes/_shell.monitor.index'
 import { Route as ShellMonitorCetonasRouteImport } from './routes/_shell.monitor.cetonas'
 import { Route as ShellMonitorGlicemiaRouteImport } from './routes/_shell.monitor.glicemia'
@@ -31,6 +34,22 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ShellAlimentacaoIndexRoute = ShellAlimentacaoIndexRouteImport.update({
+  id: '/alimentacao/',
+  path: '/alimentacao/',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellAlimentacaoHistoricoRoute =
+  ShellAlimentacaoHistoricoRouteImport.update({
+    id: '/alimentacao/historico',
+    path: '/alimentacao/historico',
+    getParentRoute: () => ShellRoute,
+  } as any)
+const ShellAlimentacaoNovoRoute = ShellAlimentacaoNovoRouteImport.update({
+  id: '/alimentacao/novo',
+  path: '/alimentacao/novo',
+  getParentRoute: () => ShellRoute,
 } as any)
 const ShellMonitorIndexRoute = ShellMonitorIndexRouteImport.update({
   id: '/monitor/',
@@ -63,8 +82,11 @@ const ShellMonitorInsulinaNovaRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/alimentacao/historico': typeof ShellAlimentacaoHistoricoRoute
+  '/alimentacao/novo': typeof ShellAlimentacaoNovoRoute
   '/monitor/cetonas': typeof ShellMonitorCetonasRoute
   '/monitor/glicemia': typeof ShellMonitorGlicemiaRoute
+  '/alimentacao/': typeof ShellAlimentacaoIndexRoute
   '/monitor/': typeof ShellMonitorIndexRoute
   '/monitor/insulina/nova': typeof ShellMonitorInsulinaNovaRoute
   '/monitor/insulina/': typeof ShellMonitorInsulinaIndexRoute
@@ -72,8 +94,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/alimentacao/historico': typeof ShellAlimentacaoHistoricoRoute
+  '/alimentacao/novo': typeof ShellAlimentacaoNovoRoute
   '/monitor/cetonas': typeof ShellMonitorCetonasRoute
   '/monitor/glicemia': typeof ShellMonitorGlicemiaRoute
+  '/alimentacao': typeof ShellAlimentacaoIndexRoute
   '/monitor': typeof ShellMonitorIndexRoute
   '/monitor/insulina/nova': typeof ShellMonitorInsulinaNovaRoute
   '/monitor/insulina': typeof ShellMonitorInsulinaIndexRoute
@@ -83,8 +108,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_shell': typeof ShellRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_shell/alimentacao/historico': typeof ShellAlimentacaoHistoricoRoute
+  '/_shell/alimentacao/novo': typeof ShellAlimentacaoNovoRoute
   '/_shell/monitor/cetonas': typeof ShellMonitorCetonasRoute
   '/_shell/monitor/glicemia': typeof ShellMonitorGlicemiaRoute
+  '/_shell/alimentacao/': typeof ShellAlimentacaoIndexRoute
   '/_shell/monitor/': typeof ShellMonitorIndexRoute
   '/_shell/monitor/insulina/nova': typeof ShellMonitorInsulinaNovaRoute
   '/_shell/monitor/insulina/': typeof ShellMonitorInsulinaIndexRoute
@@ -94,8 +122,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/alimentacao/historico'
+    | '/alimentacao/novo'
     | '/monitor/cetonas'
     | '/monitor/glicemia'
+    | '/alimentacao/'
     | '/monitor/'
     | '/monitor/insulina/nova'
     | '/monitor/insulina/'
@@ -103,8 +134,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/alimentacao/historico'
+    | '/alimentacao/novo'
     | '/monitor/cetonas'
     | '/monitor/glicemia'
+    | '/alimentacao'
     | '/monitor'
     | '/monitor/insulina/nova'
     | '/monitor/insulina'
@@ -113,8 +147,11 @@ export interface FileRouteTypes {
     | '/'
     | '/_shell'
     | '/auth'
+    | '/_shell/alimentacao/historico'
+    | '/_shell/alimentacao/novo'
     | '/_shell/monitor/cetonas'
     | '/_shell/monitor/glicemia'
+    | '/_shell/alimentacao/'
     | '/_shell/monitor/'
     | '/_shell/monitor/insulina/nova'
     | '/_shell/monitor/insulina/'
@@ -148,6 +185,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_shell/alimentacao/': {
+      id: '/_shell/alimentacao/'
+      path: '/alimentacao'
+      fullPath: '/alimentacao/'
+      preLoaderRoute: typeof ShellAlimentacaoIndexRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/alimentacao/historico': {
+      id: '/_shell/alimentacao/historico'
+      path: '/alimentacao/historico'
+      fullPath: '/alimentacao/historico'
+      preLoaderRoute: typeof ShellAlimentacaoHistoricoRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/alimentacao/novo': {
+      id: '/_shell/alimentacao/novo'
+      path: '/alimentacao/novo'
+      fullPath: '/alimentacao/novo'
+      preLoaderRoute: typeof ShellAlimentacaoNovoRouteImport
+      parentRoute: typeof ShellRoute
     }
     '/_shell/monitor/': {
       id: '/_shell/monitor/'
@@ -188,16 +246,22 @@ declare module '@tanstack/react-router' {
 }
 
 interface ShellRouteChildren {
+  ShellAlimentacaoHistoricoRoute: typeof ShellAlimentacaoHistoricoRoute
+  ShellAlimentacaoNovoRoute: typeof ShellAlimentacaoNovoRoute
   ShellMonitorCetonasRoute: typeof ShellMonitorCetonasRoute
   ShellMonitorGlicemiaRoute: typeof ShellMonitorGlicemiaRoute
+  ShellAlimentacaoIndexRoute: typeof ShellAlimentacaoIndexRoute
   ShellMonitorIndexRoute: typeof ShellMonitorIndexRoute
   ShellMonitorInsulinaNovaRoute: typeof ShellMonitorInsulinaNovaRoute
   ShellMonitorInsulinaIndexRoute: typeof ShellMonitorInsulinaIndexRoute
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
+  ShellAlimentacaoHistoricoRoute: ShellAlimentacaoHistoricoRoute,
+  ShellAlimentacaoNovoRoute: ShellAlimentacaoNovoRoute,
   ShellMonitorCetonasRoute: ShellMonitorCetonasRoute,
   ShellMonitorGlicemiaRoute: ShellMonitorGlicemiaRoute,
+  ShellAlimentacaoIndexRoute: ShellAlimentacaoIndexRoute,
   ShellMonitorIndexRoute: ShellMonitorIndexRoute,
   ShellMonitorInsulinaNovaRoute: ShellMonitorInsulinaNovaRoute,
   ShellMonitorInsulinaIndexRoute: ShellMonitorInsulinaIndexRoute,
