@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useFoods, useGlucose, useMeals, useStoreMutation } from "@/hooks/use-data";
+import { useFoods, useMeals, useStoreMutation } from "@/hooks/use-data";
 import { usePatientStore } from "@/lib/app-context";
 import { computeItem, sumItems } from "@/lib/nutrition";
 import { gramsSchema } from "@/lib/validation";
@@ -181,7 +181,7 @@ function FoodPage() {
           </div>
         )}
       </Card>
-      <NearbyHint />
+
     </div>
   );
 }
@@ -195,7 +195,3 @@ function Total({ label, value, unit, strong }: { label: string; value: number | 
   );
 }
 
-function NearbyHint() {
-  useGlucose(3); // warms cache for history page
-  return null;
-}

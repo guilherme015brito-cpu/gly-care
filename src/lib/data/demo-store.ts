@@ -83,8 +83,8 @@ class DemoStore implements DataStore {
     this.meals = [
       { id: uid(), patient_id: DEMO_PID, meal_type: "lunch", eaten_at: h(2.6), total_carbs_g: 44, total_protein_g: 12.5, total_fat_g: 1.3, total_kcal: 455, has_missing_values: false, notes: "Refeição simulada", is_favorite: false, favorite_name: null,
         items: [
-          { id: uid(), food_id: f[0].id, food_name: f[0].name, food_source: "fictional_example", grams: 100, carbs_g: 30, protein_g: 2.5, fat_g: 0.3, kcal: 135 },
-          { id: uid(), food_id: f[1].id, food_name: f[1].name, food_source: "fictional_example", grams: 100, carbs_g: 14, protein_g: 5, fat_g: 0.5, kcal: 80 },
+          { id: uid(), food_id: f[0]!.id, food_name: f[0]!.name, food_source: "fictional_example", grams: 100, carbs_g: 30, protein_g: 2.5, fat_g: 0.3, kcal: 135 },
+          { id: uid(), food_id: f[1]!.id, food_name: f[1]!.name, food_source: "fictional_example", grams: 100, carbs_g: 14, protein_g: 5, fat_g: 0.5, kcal: 80 },
         ] },
     ];
   }

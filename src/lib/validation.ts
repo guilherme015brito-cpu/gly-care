@@ -15,7 +15,7 @@ export const decimalString = (opts: { min: number; max: number; label: string; m
     .trim()
     .min(1, `Informe ${opts.label}`)
     .refine((s) => new RegExp(`^\\d{1,4}([.,]\\d{1,${opts.maxDecimals ?? 2}})?$`).test(s), {
-      message: `${opts.label[0].toUpperCase()}${opts.label.slice(1)} inválido(a). Use apenas números, ex.: 4 ou 4,5`,
+      message: `${opts.label.charAt(0).toUpperCase()}${opts.label.slice(1)} inválido(a). Use apenas números, ex.: 4 ou 4,5`,
     })
     .transform((s) => Number(s.replace(",", ".")))
     .refine((n) => n >= opts.min && n <= opts.max, {
