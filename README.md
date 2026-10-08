@@ -792,3 +792,5 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+Aplicativo GlyCare — deploy inicial
