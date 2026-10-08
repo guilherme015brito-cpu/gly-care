@@ -75,23 +75,23 @@ function PatientSettings() {
         <fieldset disabled={readOnly} className="space-y-4">
           <Card className="space-y-3">
             <CardTitle>Identificação</CardTitle>
-            <Field id="nick" label="Nome ou apelido" error={errors.nickname}><Input id="nick" className={inputCls} value={f.nickname} onChange={set("nickname")} /></Field>
-            <Field id="bd" label="Data de nascimento" optional error={errors.birth_date}><Input id="bd" type="date" className={inputCls} value={f.birth_date} onChange={set("birth_date")} /></Field>
+            <Field id="nick" label="Nome ou apelido" error={errors["nickname"]}><Input id="nick" className={inputCls} value={f.nickname} onChange={set("nickname")} /></Field>
+            <Field id="bd" label="Data de nascimento" optional error={errors["birth_date"]}><Input id="bd" type="date" className={inputCls} value={f.birth_date} onChange={set("birth_date")} /></Field>
           </Card>
           <Card className="space-y-3">
             <CardTitle icon={<Target className="h-4 w-4" />}>Glicemia-alvo e faixas (prescritas)</CardTitle>
-            <Field id="tg" label="Glicemia-alvo prescrita" optional hint="Como consta na prescrição" error={errors.target_glucose_text}><Input id="tg" className={inputCls} value={f.target_glucose_text} onChange={set("target_glucose_text")} /></Field>
+            <Field id="tg" label="Glicemia-alvo prescrita" optional hint="Como consta na prescrição" error={errors["target_glucose_text"]}><Input id="tg" className={inputCls} value={f.target_glucose_text} onChange={set("target_glucose_text")} /></Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field id="vl" label="Muito baixa abaixo de" error={errors.very_low_mgdl}><Input id="vl" inputMode="numeric" className={inputCls} value={f.very_low_mgdl} onChange={set("very_low_mgdl")} /></Field>
-              <Field id="tl" label="Faixa-alvo mínima" error={errors.target_low_mgdl}><Input id="tl" inputMode="numeric" className={inputCls} value={f.target_low_mgdl} onChange={set("target_low_mgdl")} /></Field>
-              <Field id="th" label="Faixa-alvo máxima" error={errors.target_high_mgdl}><Input id="th" inputMode="numeric" className={inputCls} value={f.target_high_mgdl} onChange={set("target_high_mgdl")} /></Field>
-              <Field id="vh" label="Muito alta acima de" error={errors.very_high_mgdl}><Input id="vh" inputMode="numeric" className={inputCls} value={f.very_high_mgdl} onChange={set("very_high_mgdl")} /></Field>
+              <Field id="vl" label="Muito baixa abaixo de" error={errors["very_low_mgdl"]}><Input id="vl" inputMode="numeric" className={inputCls} value={f.very_low_mgdl} onChange={set("very_low_mgdl")} /></Field>
+              <Field id="tl" label="Faixa-alvo mínima" error={errors["target_low_mgdl"]}><Input id="tl" inputMode="numeric" className={inputCls} value={f.target_low_mgdl} onChange={set("target_low_mgdl")} /></Field>
+              <Field id="th" label="Faixa-alvo máxima" error={errors["target_high_mgdl"]}><Input id="th" inputMode="numeric" className={inputCls} value={f.target_high_mgdl} onChange={set("target_high_mgdl")} /></Field>
+              <Field id="vh" label="Muito alta acima de" error={errors["very_high_mgdl"]}><Input id="vh" inputMode="numeric" className={inputCls} value={f.very_high_mgdl} onChange={set("very_high_mgdl")} /></Field>
             </div>
             <p className="text-xs text-muted-foreground">Valores em mg/dL. Os padrões iniciais (54/70/180/250) são apenas ponto de partida: substitua pelos valores da equipe.</p>
           </Card>
           <Card className="space-y-3">
             <CardTitle icon={<ClipboardList className="h-4 w-4" />}>Prescrição</CardTitle>
-            <Field id="fs" label="Fator de sensibilidade prescrito" optional error={errors.sensitivity_factor_text}><Input id="fs" className={inputCls} value={f.sensitivity_factor_text} onChange={set("sensitivity_factor_text")} /></Field>
+            <Field id="fs" label="Fator de sensibilidade prescrito" optional error={errors["sensitivity_factor_text"]}><Input id="fs" className={inputCls} value={f.sensitivity_factor_text} onChange={set("sensitivity_factor_text")} /></Field>
             <div>
               <p className="text-sm font-semibold">Relação insulina/carboidrato por horário</p>
               <ul className="mt-2 space-y-2">
@@ -104,19 +104,19 @@ function PatientSettings() {
                   </li>
                 ))}
               </ul>
-              {errors.ratios && <p role="alert" className="mt-1 text-sm text-destructive">{errors.ratios}</p>}
+              {errors["ratios"] && <p role="alert" className="mt-1 text-sm text-destructive">{errors["ratios"]}</p>}
               <Button type="button" variant="soft" size="sm" className="mt-2" onClick={() => setRatios([...ratios, { from: "", to: "", ratio_text: "" }])}><Plus aria-hidden /> Adicionar faixa</Button>
             </div>
-            <Field id="ri" label="Insulina rápida" optional error={errors.rapid_insulin_text}><Input id="ri" className={inputCls} value={f.rapid_insulin_text} onChange={set("rapid_insulin_text")} /></Field>
-            <Field id="bi" label="Insulina basal" optional error={errors.basal_insulin_text}><Input id="bi" className={inputCls} value={f.basal_insulin_text} onChange={set("basal_insulin_text")} /></Field>
-            <Field id="at" label="Horários de administração" optional error={errors.administration_times}><Input id="at" className={inputCls} value={f.administration_times} onChange={set("administration_times")} /></Field>
-            <Field id="ci" label="Instruções clínicas da equipe" optional hint="Transcreva exatamente como fornecido pela equipe" error={errors.clinical_instructions}><Textarea id="ci" rows={5} value={f.clinical_instructions} onChange={set("clinical_instructions")} maxLength={4000} /></Field>
-            <Field id="lr" label="Data da última revisão dos parâmetros" optional error={errors.last_review_date}><Input id="lr" type="date" className={inputCls} value={f.last_review_date} onChange={set("last_review_date")} /></Field>
+            <Field id="ri" label="Insulina rápida" optional error={errors["rapid_insulin_text"]}><Input id="ri" className={inputCls} value={f.rapid_insulin_text} onChange={set("rapid_insulin_text")} /></Field>
+            <Field id="bi" label="Insulina basal" optional error={errors["basal_insulin_text"]}><Input id="bi" className={inputCls} value={f.basal_insulin_text} onChange={set("basal_insulin_text")} /></Field>
+            <Field id="at" label="Horários de administração" optional error={errors["administration_times"]}><Input id="at" className={inputCls} value={f.administration_times} onChange={set("administration_times")} /></Field>
+            <Field id="ci" label="Instruções clínicas da equipe" optional hint="Transcreva exatamente como fornecido pela equipe" error={errors["clinical_instructions"]}><Textarea id="ci" rows={5} value={f.clinical_instructions} onChange={set("clinical_instructions")} maxLength={4000} /></Field>
+            <Field id="lr" label="Data da última revisão dos parâmetros" optional error={errors["last_review_date"]}><Input id="lr" type="date" className={inputCls} value={f.last_review_date} onChange={set("last_review_date")} /></Field>
           </Card>
           <Card className="space-y-3">
             <CardTitle icon={<Phone className="h-4 w-4" />}>Contato de emergência</CardTitle>
-            <Field id="en" label="Nome" optional error={errors.emergency_contact_name}><Input id="en" className={inputCls} value={f.emergency_contact_name} onChange={set("emergency_contact_name")} /></Field>
-            <Field id="ep" label="Telefone" optional error={errors.emergency_contact_phone}><Input id="ep" type="tel" className={inputCls} value={f.emergency_contact_phone} onChange={set("emergency_contact_phone")} /></Field>
+            <Field id="en" label="Nome" optional error={errors["emergency_contact_name"]}><Input id="en" className={inputCls} value={f.emergency_contact_name} onChange={set("emergency_contact_name")} /></Field>
+            <Field id="ep" label="Telefone" optional error={errors["emergency_contact_phone"]}><Input id="ep" type="tel" className={inputCls} value={f.emergency_contact_phone} onChange={set("emergency_contact_phone")} /></Field>
           </Card>
         </fieldset>
         {!readOnly && <Button type="submit" size="lg" className="w-full" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar parâmetros"}</Button>}

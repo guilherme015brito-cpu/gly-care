@@ -116,7 +116,7 @@ function Catalog({ readOnly }: { readOnly: boolean }) {
       {open && (
         <Card>
           <form onSubmit={submit} className="space-y-3" noValidate>
-            <Field id="bn" label="Nome comercial" error={errors.brand_name}><Input id="bn" className={inputCls} value={f.brand_name} onChange={set("brand_name")} /></Field>
+            <Field id="bn" label="Nome comercial" error={errors["brand_name"]}><Input id="bn" className={inputCls} value={f.brand_name} onChange={set("brand_name")} /></Field>
             <Field id="ai" label="Princípio ativo" optional><Input id="ai" className={inputCls} value={f.active_ingredient} onChange={set("active_ingredient")} /></Field>
             <Field id="mf" label="Fabricante" optional><Input id="mf" className={inputCls} value={f.manufacturer} onChange={set("manufacturer")} /></Field>
             <Field id="pc" label="Classe farmacológica" optional><Input id="pc" className={inputCls} value={f.pharmacological_class} onChange={set("pharmacological_class")} /></Field>

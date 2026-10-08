@@ -110,13 +110,13 @@ function AuthPage() {
               )}
               <div>
                 <Label htmlFor="email">E-mail</Label>
-                <Input id="email" type="email" inputMode="email" className="mt-1 h-12" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="email" aria-invalid={!!errors.email} />
-                <FieldError msg={errors.email} />
+                <Input id="email" type="email" inputMode="email" className="mt-1 h-12" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="email" aria-invalid={!!errors["email"]} />
+                <FieldError msg={errors["email"]} />
               </div>
               <div>
                 <Label htmlFor="password">Senha</Label>
-                <Input id="password" type="password" className="mt-1 h-12" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete={tab === "in" ? "current-password" : "new-password"} aria-invalid={!!errors.password} />
-                <FieldError msg={errors.password} />
+                <Input id="password" type="password" className="mt-1 h-12" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete={tab === "in" ? "current-password" : "new-password"} aria-invalid={!!errors["password"]} />
+                <FieldError msg={errors["password"]} />
               </div>
               <Button type="submit" size="lg" className="w-full" disabled={busy}>
                 {busy ? "Aguarde…" : tab === "in" ? "Entrar" : "Criar conta"}
