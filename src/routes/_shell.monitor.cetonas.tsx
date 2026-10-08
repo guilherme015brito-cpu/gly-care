@@ -50,23 +50,23 @@ function KetonesPage() {
               <Segmented label="Método" value={form.method} onChange={(method) => setForm({ ...form, method, unit: method === "blood" ? "mmol/L" : "qualitative", value: "", qualitative: undefined })} options={[{ value: "blood", label: "Sangue" }, { value: "urine", label: "Urina" }]} />
             </Field>
             {form.method === "urine" && (
-              <Field id="u" label="Tipo de resultado" error={errors.unit}>
+              <Field id="u" label="Tipo de resultado" error={errors["unit"]}>
                 <Segmented label="Unidade" value={form.unit} onChange={(unit) => setForm({ ...form, unit })} options={[{ value: "qualitative", label: "Fita (cruzes)" }, { value: "mg/dL", label: "mg/dL" }]} />
               </Field>
             )}
             {form.unit === "qualitative" ? (
-              <Field id="q" label="Resultado da fita" error={errors.qualitative}>
+              <Field id="q" label="Resultado da fita" error={errors["qualitative"]}>
                 <Segmented label="Resultado" cols={2} value={form.qualitative ?? ("" as KetoneQualitative)} onChange={(qualitative) => setForm({ ...form, qualitative })} options={(Object.keys(KETONE_QUAL_LABEL) as KetoneQualitative[]).map((k) => ({ value: k, label: KETONE_QUAL_LABEL[k] }))} />
               </Field>
             ) : (
-              <Field id="v" label={`Valor (${form.unit})`} error={errors.value}>
+              <Field id="v" label={`Valor (${form.unit})`} error={errors["value"]}>
                 <Input id="v" inputMode="decimal" className={inputCls} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} />
               </Field>
             )}
-            <Field id="t" label="Data e horário" error={errors.measured_at}>
+            <Field id="t" label="Data e horário" error={errors["measured_at"]}>
               <Input id="t" type="datetime-local" className={inputCls} value={form.measured_at} onChange={(e) => setForm({ ...form, measured_at: e.target.value })} />
             </Field>
-            <Field id="n" label="Observações" optional error={errors.notes}>
+            <Field id="n" label="Observações" optional error={errors["notes"]}>
               <Textarea id="n" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} maxLength={500} />
             </Field>
             <Button type="submit" size="lg" className="w-full" disabled={add.isPending}>Salvar</Button>

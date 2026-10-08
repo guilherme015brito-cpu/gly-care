@@ -148,7 +148,7 @@ export function NavRow({ to, icon, title, desc }: { to: string; icon: ReactNode;
   );
 }
 
-export function FieldError({ msg, id }: { msg?: string; id?: string }) {
+export function FieldError({ msg, id }: { msg?: string | undefined; id?: string | undefined }) {
   if (!msg) return null;
   return (
     <p id={id} role="alert" className="mt-1 text-sm font-medium text-destructive">

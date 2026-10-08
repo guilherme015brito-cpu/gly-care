@@ -109,33 +109,33 @@ function NewAdministration() {
           <Field id="st" label="Situação">
             <Segmented label="Situação" value={form.status} onChange={(status) => setForm({ ...form, status, confirmed: false })} options={[{ value: "performed", label: "Realizada" }, { value: "planned", label: "Planejada" }]} />
           </Field>
-          <Field id="ins" label="Insulina utilizada" error={errors.insulin_id}>
-            <select id="ins" className={selectCls} value={form.insulin_id} onChange={(e) => setForm({ ...form, insulin_id: e.target.value })} aria-invalid={!!errors.insulin_id}>
+          <Field id="ins" label="Insulina utilizada" error={errors["insulin_id"]}>
+            <select id="ins" className={selectCls} value={form.insulin_id} onChange={(e) => setForm({ ...form, insulin_id: e.target.value })} aria-invalid={!!errors["insulin_id"]}>
               <option value="">Selecione…</option>
               {options.map((o) => (
                 <option key={o.id} value={o.id}>{o.brand_name}{o.concentration ? ` (${o.concentration})` : ""}{o.inUse ? " — em uso" : ""}</option>
               ))}
             </select>
           </Field>
-          <Field id="dose" label="Dose administrada (UI)" hint="Unidades internacionais. Ex.: 4 ou 4,5" error={errors.dose}>
-            <Input id="dose" inputMode="decimal" className={`${inputCls} text-2xl font-bold`} value={form.dose} onChange={(e) => setForm({ ...form, dose: e.target.value })} aria-invalid={!!errors.dose} />
+          <Field id="dose" label="Dose administrada (UI)" hint="Unidades internacionais. Ex.: 4 ou 4,5" error={errors["dose"]}>
+            <Input id="dose" inputMode="decimal" className={`${inputCls} text-2xl font-bold`} value={form.dose} onChange={(e) => setForm({ ...form, dose: e.target.value })} aria-invalid={!!errors["dose"]} />
           </Field>
-          <Field id="when" label="Data e horário efetivos" error={errors.administered_at}>
+          <Field id="when" label="Data e horário efetivos" error={errors["administered_at"]}>
             <Input id="when" type="datetime-local" className={inputCls} value={form.administered_at} onChange={(e) => setForm({ ...form, administered_at: e.target.value })} />
           </Field>
-          <Field id="pur" label="Tipo de aplicação" error={errors.purpose}>
+          <Field id="pur" label="Tipo de aplicação" error={errors["purpose"]}>
             <Segmented label="Tipo" cols={2} value={form.purpose} onChange={(purpose) => setForm({ ...form, purpose })} options={(Object.keys(PURPOSE_LABEL) as AdministrationPurpose[]).map((v) => ({ value: v, label: PURPOSE_LABEL[v] }))} />
           </Field>
-          <Field id="gb" label="Glicemia antes da aplicação (mg/dL)" optional error={errors.glucose_before}>
+          <Field id="gb" label="Glicemia antes da aplicação (mg/dL)" optional error={errors["glucose_before"]}>
             <Input id="gb" inputMode="numeric" className={inputCls} value={form.glucose_before} onChange={(e) => setForm({ ...form, glucose_before: e.target.value })} />
           </Field>
-          <Field id="site" label="Local da aplicação" optional error={errors.injection_site}>
+          <Field id="site" label="Local da aplicação" optional error={errors["injection_site"]}>
             <Input id="site" className={inputCls} placeholder="Ex.: abdômen, braço" value={form.injection_site} onChange={(e) => setForm({ ...form, injection_site: e.target.value })} maxLength={60} />
           </Field>
-          <Field id="by" label="Responsável pelo registro" optional error={errors.recorded_by_name}>
+          <Field id="by" label="Responsável pelo registro" optional error={errors["recorded_by_name"]}>
             <Input id="by" className={inputCls} value={form.recorded_by_name} onChange={(e) => setForm({ ...form, recorded_by_name: e.target.value })} maxLength={100} />
           </Field>
-          <Field id="obs" label="Observações" optional error={errors.notes}>
+          <Field id="obs" label="Observações" optional error={errors["notes"]}>
             <Textarea id="obs" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} maxLength={1000} />
           </Field>
           {form.status === "performed" && (
@@ -144,7 +144,7 @@ function NewAdministration() {
                 <Checkbox checked={form.confirmed} onCheckedChange={(v) => setForm({ ...form, confirmed: v === true })} className="mt-0.5 h-6 w-6" aria-describedby="confirmed-err" />
                 <span className="text-sm">Confirmo que esta aplicação <strong>realmente ocorreu</strong>, com a dose e o horário informados.</span>
               </label>
-              {errors.confirmed && <p id="confirmed-err" role="alert" className="mt-1 text-sm font-medium text-destructive">{errors.confirmed}</p>}
+              {errors["confirmed"] && <p id="confirmed-err" role="alert" className="mt-1 text-sm font-medium text-destructive">{errors["confirmed"]}</p>}
             </div>
           )}
           <p className="text-xs text-muted-foreground">O registro documenta o que foi informado; não comprova que a dose foi administrada.</p>

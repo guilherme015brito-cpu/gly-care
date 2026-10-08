@@ -15,7 +15,7 @@ export function zodErrors(e: ZodError): Errors {
   return out;
 }
 
-export function Field({ id, label, hint, error, children, optional }: { id: string; label: string; hint?: string; error?: string; children: ReactNode; optional?: boolean }) {
+export function Field({ id, label, hint, error, children, optional }: { id: string; label: string; hint?: string | undefined; error?: string | undefined; children: ReactNode; optional?: boolean | undefined }) {
   return (
     <div>
       <Label htmlFor={id} className="text-sm font-semibold">

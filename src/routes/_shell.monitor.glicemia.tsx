@@ -59,13 +59,13 @@ function GlucosePage() {
           <CardTitle icon={<Droplet className="h-4 w-4" />}>Registrar glicemia manual</CardTitle>
           <form onSubmit={submit} className="space-y-3" noValidate>
             <Segmented label="Unidade" value={form.unit} onChange={(unit) => setForm({ ...form, unit })} options={[{ value: "mg/dL", label: "mg/dL" }, { value: "mmol/L", label: "mmol/L" }]} />
-            <Field id="gv" label="Valor medido" error={errors.value}>
-              <Input id="gv" inputMode="decimal" className={inputCls} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} aria-invalid={!!errors.value} />
+            <Field id="gv" label="Valor medido" error={errors["value"]}>
+              <Input id="gv" inputMode="decimal" className={inputCls} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} aria-invalid={!!errors["value"]} />
             </Field>
-            <Field id="gt" label="Data e horário da medição" error={errors.measured_at}>
+            <Field id="gt" label="Data e horário da medição" error={errors["measured_at"]}>
               <Input id="gt" type="datetime-local" className={inputCls} value={form.measured_at} onChange={(e) => setForm({ ...form, measured_at: e.target.value })} />
             </Field>
-            <Field id="gn" label="Observações" optional error={errors.notes}>
+            <Field id="gn" label="Observações" optional error={errors["notes"]}>
               <Textarea id="gn" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} maxLength={500} />
             </Field>
             <Button type="submit" size="lg" className="w-full" disabled={add.isPending}>{add.isPending ? "Salvando…" : "Salvar leitura"}</Button>

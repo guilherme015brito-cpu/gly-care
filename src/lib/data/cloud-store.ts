@@ -75,7 +75,7 @@ export const cloudStore: DataStore = {
   },
   async ingestGlucose(pid, readings) {
     if (!readings.length) return 0;
-    const minT = readings.reduce((m, r) => (r.measured_at < m ? r.measured_at : m), readings[0].measured_at);
+    const minT = readings.reduce((m, r) => (r.measured_at < m ? r.measured_at : m), readings[0]!.measured_at);
     const existing = check(await supabase.from("glucose_readings").select("provider_id, external_id, measured_at").eq("patient_id", pid).gte("measured_at", minT));
     const fresh = filterNewReadings(existing ?? [], readings);
     if (!fresh.length) return 0;
