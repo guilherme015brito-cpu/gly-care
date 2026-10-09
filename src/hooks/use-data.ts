@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { usePatientStore } from "@/lib/app-context";
 import type { DataStore } from "@/lib/data/store";
+import { tacoFoods } from "@/lib/taco-foods";
+import type { MealEntry } from "@/lib/domain/types";
 
 export const RANGE_HOURS = { "3h": 3, "6h": 6, "12h": 12, "24h": 24, "7d": 168 } as const;
 export type RangeKey = keyof typeof RANGE_HOURS;
@@ -36,11 +38,18 @@ export function useKetones(limit = 50) {
 }
 export function useFoods() {
   const { store, pid, key } = usePatientStore();
-  return useQuery({ queryKey: [...key, "foods"], queryFn: () => store.listFoods(pid) });
+  return useQuery({
+    queryKey: [...key, "foods", "taco-local"],
+    // Cloud food tables are not provisioned yet. Local IDs never go to Supabase.
+    queryFn: async () => store.mode === "demo" ? [...tacoFoods, ...await store.listFoods(pid)] : tacoFoods,
+  });
 }
 export function useMeals(limit = 50) {
   const { store, pid, key } = usePatientStore();
-  return useQuery({ queryKey: [...key, "meals", limit], queryFn: () => store.listMeals(pid, limit) });
+  return useQuery({
+    queryKey: [...key, "meals", limit, "demo-only"],
+    queryFn: (): Promise<MealEntry[]> => store.mode === "demo" ? store.listMeals(pid, limit) : Promise.resolve([]),
+  });
 }
 export function useSettings() {
   const { store, pid, key } = usePatientStore();
