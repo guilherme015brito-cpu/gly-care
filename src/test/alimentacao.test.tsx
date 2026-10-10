@@ -31,7 +31,7 @@ function setMode(mode: "demo" | "cloud") {
           ...demo,
           mode: "cloud",
           listFoods: vi.fn().mockRejectedValue(new Error("food_catalog must not be queried")),
-          listMeals: vi.fn().mockRejectedValue(new Error("meal tables must not be queried")),
+          listMeals: vi.fn().mockResolvedValue([]),
           addMeal: vi.fn().mockRejectedValue(new Error("local IDs must not reach Supabase")),
         };
   vi.mocked(usePatientStore).mockReturnValue({
@@ -147,19 +147,19 @@ describe("Alimentação with local TACO", () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it("calculates in authenticated mode while disabling saves without calling Supabase food/meal methods", async () => {
+  it("allows a complete authenticated meal and loads the cloud history", async () => {
     setMode("cloud");
+    const savedMeals: Array<unknown> = [];
+    store.addMeal = vi.fn(async (_pid, meal) => { savedMeals.push(meal); });
+    store.listMeals = vi.fn().mockResolvedValue([]);
     render(<FoodPage />, { wrapper });
-    expect(
-      screen.getByText(/registro de refeições está temporariamente desabilitado/),
-    ).toBeInTheDocument();
     await add("Arroz, tipo 1, cozido", "80");
     expect(screen.getByText("22,5 g carb")).toBeInTheDocument();
     const button = screen.getByRole("button", { name: "Registrar refeição" });
-    expect(button).toBeDisabled();
+    expect(button).toBeEnabled();
     fireEvent.click(button);
-    expect(store.addMeal).not.toHaveBeenCalled();
-    expect(store.listMeals).not.toHaveBeenCalled();
+    await waitFor(() => expect(store.addMeal).toHaveBeenCalledTimes(1));
+    expect(savedMeals).toHaveLength(1);
     expect(store.listFoods).not.toHaveBeenCalled();
   });
 });
