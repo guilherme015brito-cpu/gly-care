@@ -112,6 +112,13 @@ function Dashboard() {
                 </Notice>
               </div>
             )}
+            {latest.value_mgdl >= 250 && latest.source !== "simulation" && (
+              <div className="mt-3">
+                <Notice tone="warning">
+                  <strong>Glicemia muito alta.</strong> Confira a leitura e siga o plano prescrito. Se a hiperglicemia persistir ou houver doença, confira as cetonas conforme a orientação da equipe. Vômitos, dor abdominal, respiração diferente ou sonolência exigem avaliação médica urgente.
+                </Notice>
+              </div>
+            )}
             {latest.source === "simulation" && (
               <div className="mt-3">
                 <Notice tone="sim">Valor SIMULADO para demonstração. Não representa a paciente.</Notice>
