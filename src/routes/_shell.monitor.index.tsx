@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Activity, Droplet, History, RefreshCw, Syringe, Utensils, Hourglass, CloudOff, CheckCircle2 } from "lucide-react";
+import { Activity, Droplet, History, RefreshCw, Syringe, Utensils, CloudOff, CheckCircle2 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
-import { RANGE_HOURS, type RangeKey, useAdministrations, useCatalog, useGlucose, useKetones, useMeals, usePatientInsulins, useSettings } from "@/hooks/use-data";
+import { RANGE_HOURS, type RangeKey, useAdministrations, useCatalog, useGlucose, useKetones, useMeals, useSettings } from "@/hooks/use-data";
 import { useOnline } from "@/hooks/use-online";
 import { classifyGlucose, isStale, STALE_AFTER_MIN } from "@/lib/glucose/status";
 import { PURPOSE_LABEL, TREND_LABEL, fmtDateTime, relativeAge } from "@/lib/domain/labels";
@@ -32,7 +32,6 @@ function Dashboard() {
   const settings = useSettings();
   const admins = useAdministrations(10);
   const catalog = useCatalog();
-  const patientInsulins = usePatientInsulins();
   const meals = useMeals(30);
   const ketones = useKetones(30);
   const online = useOnline();
@@ -42,9 +41,7 @@ function Dashboard() {
   const band = latest && settings.data ? classifyGlucose(latest.value_mgdl, settings.data) : null;
   const lastAdmin = admins.data?.find((a) => !a.is_superseded && a.status === "performed");
   const insulinName = (id: string) => catalog.data?.find((c) => c.id === id)?.brand_name ?? "Insulina";
-  const rapidInsulinIds = new Set(patientInsulins.data?.filter((p) => p.role === "rapid").map((p) => p.insulin_id) ?? []);
-  const lastRapid = admins.data?.find((a) => !a.is_superseded && a.status === "performed" && rapidInsulinIds.has(a.insulin_id));
-  const lastRapidIsFiasp = lastRapid ? /fiasp/i.test(insulinName(lastRapid.insulin_id)) : false;
+
 
   return (
     <div className="space-y-4">
@@ -148,49 +145,35 @@ function Dashboard() {
         <QuickAction to="/alimentacao" icon={<Utensils />} label="Registrar refeição" />
       </section>
 
-      {/* Insulin */}
+      {/* A compact summary; full insulin history remains one tap away. */}
       <Card>
-        <CardTitle icon={<Syringe className="h-4 w-4" />}>
-          Aplicações de insulina
-        </CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle icon={<Syringe className="h-4 w-4" />}>Insulina</CardTitle>
+          <Link to="/monitor/insulina" className="flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary">
+            <History className="h-4 w-4" aria-hidden />
+            Histórico
+          </Link>
+        </div>
         {admins.isLoading ? (
           <LoadingState />
         ) : admins.error ? (
           <ErrorState error={admins.error} />
         ) : !lastAdmin ? (
-          <EmptyState title="Nenhuma aplicação registrada" />
+          <p className="text-sm text-muted-foreground">Nenhuma aplicação informada.</p>
         ) : (
-          <>
-            <div className="rounded-xl bg-primary-soft p-3">
-              <p className="text-xs font-semibold uppercase text-primary">Última aplicação registrada</p>
-              <p className="mt-1 text-3xl font-extrabold">{lastAdmin.dose_units.toLocaleString("pt-BR")} <span className="text-base font-semibold">UI</span></p>
-              <p className="font-semibold">{insulinName(lastAdmin.insulin_id)}</p>
-              <p className="text-sm text-muted-foreground">{PURPOSE_LABEL[lastAdmin.purpose]} · {fmtDateTime(lastAdmin.administered_at)} ({relativeAge(lastAdmin.administered_at)})</p>
-            </div>
-            <ul className="mt-3 divide-y">
-              {admins.data!.filter((a) => a.id !== lastAdmin.id && !a.is_superseded).slice(0, 4).map((a) => (
-                <li key={a.id} className="flex items-center justify-between py-2 text-sm">
-                  <span className="min-w-0 truncate">{insulinName(a.insulin_id)} · {PURPOSE_LABEL[a.purpose]}{a.status === "planned" && <strong className="ml-1 text-warning-foreground">(planejada)</strong>}</span>
-                  <span className="shrink-0 pl-2 font-semibold">{a.dose_units} UI · {fmtDateTime(a.administered_at)}</span>
-                </li>
-              ))}
-            </ul>
-          </>
+          <div className="rounded-xl bg-primary-soft p-3">
+            <p className="text-xs font-medium text-muted-foreground">Última aplicação informada</p>
+            <p className="mt-1 text-lg font-bold">
+              {lastAdmin.dose_units.toLocaleString("pt-BR")} UI · {insulinName(lastAdmin.insulin_id)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {PURPOSE_LABEL[lastAdmin.purpose]} · {fmtDateTime(lastAdmin.administered_at)} ({relativeAge(lastAdmin.administered_at)})
+            </p>
+          </div>
         )}
-        <Link to="/monitor/insulina" className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2.5 text-sm font-semibold text-primary hover:bg-muted">
-          <History className="h-4 w-4" aria-hidden />
-          Ver histórico de insulina
-        </Link>
-        <div className="mt-3 rounded-xl border border-dashed p-3">
-          <p className="flex items-center gap-2 text-sm font-semibold"><Hourglass className="h-4 w-4 text-muted-foreground" aria-hidden /> Insulina rápida e ação residual</p>
-          {lastRapid ? (
-            <p className="mt-2 text-sm">Última aplicação rápida informada: <strong>{insulinName(lastRapid.insulin_id)}, {lastRapid.dose_units.toLocaleString("pt-BR")} UI</strong> · {fmtDateTime(lastRapid.administered_at)} ({relativeAge(lastRapid.administered_at)}).</p>
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground">Nenhuma aplicação de insulina rápida confirmada neste histórico.</p>
-          )}
-          {lastRapidIsFiasp && <p className="mt-2 text-sm text-muted-foreground">Referência farmacológica: Fiasp pode agir aproximadamente por 3 a 5 horas, com variação individual. Isso não indica quando aplicar outra dose.</p>}
-          <p className="mt-2 text-sm text-muted-foreground">Insulina ativa restante (IOB) não calculada. Uma aplicação recente pode se sobrepor à próxima; siga o plano clínico para refeições e correções.</p>
-        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Insulina ativa (IOB): ainda não calculada. Aplicações recentes podem continuar fazendo efeito.
+        </p>
       </Card>
 
       <p className="px-2 pb-2 text-center text-xs text-muted-foreground">
