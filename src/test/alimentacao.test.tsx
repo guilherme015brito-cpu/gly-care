@@ -115,6 +115,22 @@ describe("Alimentação with local TACO", () => {
     expect(meal.items.every((item) => item.food_source === "TACO")).toBe(true);
   });
 
+  it("finds TACO foods with or without accent marks", async () => {
+    setMode("demo");
+    render(<FoodPage />, { wrapper });
+    const search = screen.getByRole("searchbox");
+    for (const [typed, expected] of [
+      ["feijao", "Feijão, carioca, cozido"],
+      ["macarrao", "Macarrão, trigo, cru"],
+      ["acucar", "Açúcar, cristal"],
+      ["cafe", "Café, infusão 10%"],
+      ["FEIJÃO", "Feijão, carioca, cozido"],
+    ] as const) {
+      fireEvent.change(search, { target: { value: typed } });
+      expect(await screen.findByRole("button", { name: `Adicionar ${expected}` })).toBeInTheDocument();
+    }
+  });
+
   it("shows missing carbs as a dash and blocks saving an incomplete demo meal", async () => {
     setMode("demo");
     const save = vi.spyOn(store, "addMeal");
