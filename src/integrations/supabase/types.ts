@@ -776,6 +776,14 @@ export type Database = {
         }
         Returns: string
       }
+      save_meal_atomic: {
+        Args: {
+          p_patient_id: string
+          p_meal: Json
+          p_items: Json
+        }
+        Returns: string
+      }
       can_write_patient: { Args: { _patient: string }; Returns: boolean }
       is_patient_caregiver: { Args: { _patient: string }; Returns: boolean }
       is_patient_member: { Args: { _patient: string }; Returns: boolean }

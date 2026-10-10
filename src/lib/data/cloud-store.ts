@@ -185,32 +185,33 @@ export const cloudStore: DataStore = {
     });
   },
   async addMeal(pid, m) {
-    const id = crypto.randomUUID();
-    check(
-      await supabase.from("meal_entries").insert({
-        id,
-        patient_id: pid,
+    if (!m.items.length || m.items.some((item) => item.carbs_g == null)) {
+      throw new Error("Refeição sem alimentos ou com carboidratos incompletos. Nada foi salvo.");
+    }
+    // One RPC request = one database transaction: neither the meal nor its items
+    // persist if validation or insertion of any item fails.
+    // IDs such as taco-003 remain strings because meal_items.food_id is TEXT.
+    const items = m.items.map((item) => ({
+      food_id: item.food_id,
+      food_name: item.food_name,
+      food_source: item.food_source,
+      grams: item.grams,
+      carbs_g: item.carbs_g,
+      protein_g: item.protein_g,
+      fat_g: item.fat_g,
+      kcal: item.kcal,
+    }));
+    check(await supabase.rpc("save_meal_atomic", {
+      p_patient_id: pid,
+      p_meal: {
         meal_type: m.meal_type,
         eaten_at: new Date(m.eaten_at).toISOString(),
-        total_carbs_g: m.totals.carbs_g,
-        total_protein_g: m.totals.protein_g,
-        total_fat_g: m.totals.fat_g,
-        total_kcal: m.totals.kcal,
-        has_missing_values: m.totals.hasMissing,
         notes: m.notes,
         is_favorite: m.is_favorite,
         favorite_name: m.favorite_name,
-      }),
-    );
-    // TACO IDs (e.g. taco-003) live in the local JSON, not in the UUID food_catalog table.
-    // Preserve the item name, source, portion and nutrients in the meal snapshot.
-    const items = m.items.map((it) => ({
-      ...it,
-      food_id: it.food_source === "TACO" ? null : it.food_id,
-      meal_id: id,
-      patient_id: pid,
+      },
+      p_items: items,
     }));
-    check(await supabase.from("meal_items").insert(items));
   },
 
   async getSettings(pid) {
