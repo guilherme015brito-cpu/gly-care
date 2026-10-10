@@ -1,17 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Search, Plus, Star, Trash2, History, Utensils, Info } from "lucide-react";
-import { PageHeader, Card, CardTitle, EmptyState, ErrorState, LoadingState, Notice } from "@/components/glycare/ui-bits";
+import { Search, Plus, Star, Trash2, History, Utensils } from "lucide-react";
+import { PageHeader, Card, CardTitle, EmptyState, ErrorState, LoadingState } from "@/components/glycare/ui-bits";
 import { Field, Segmented, inputCls, selectCls } from "@/components/glycare/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useFoods, useMeals, useStoreMutation } from "@/hooks/use-data";
+import { useFoods, useMeals, useSettings, useStoreMutation } from "@/hooks/use-data";
 import { usePatientStore } from "@/lib/app-context";
 import { computeItem, sumItems } from "@/lib/nutrition";
 import { gramsSchema } from "@/lib/validation";
-import { FOOD_SOURCE_LABEL, FOOD_STATE_LABEL, MEAL_LABEL, fmtNum, nowLocalInput } from "@/lib/domain/labels";
+import { FOOD_SOURCE_LABEL, FOOD_STATE_LABEL, MEAL_LABEL, fmtDateTime, fmtNum, nowLocalInput } from "@/lib/domain/labels";
 import type { Food, MealType } from "@/lib/domain/types";
 import type { NewMeal } from "@/lib/data/store";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,7 @@ function FoodPage() {
   const { readOnly, mode } = usePatientStore();
   const foods = useFoods();
   const meals = useMeals(50);
+  const settings = useSettings();
   const [q, setQ] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [mealType, setMealType] = useState<MealType>("lunch");
@@ -72,6 +73,9 @@ function FoodPage() {
   const totals = sumItems(computed.filter((c) => c.item).map((c) => c.item!));
   const allValid = lines.length > 0 && computed.every((c) => c.valid);
   const favMeals = (meals.data ?? []).filter((m) => m.is_favorite);
+  const recentMeal = meals.data?.[0];
+  const currentMealProfile = settings.data?.carb_ratios.find((r) => r.meal_type === mealType);
+  const recentMealProfile = settings.data?.carb_ratios.find((r) => r.meal_type === recentMeal?.meal_type);
 
   function addFood(f: Food) {
     setLines((ls) => [...ls, { key: crypto.randomUUID(), food: f, grams: "", includesInedible: false }]);
@@ -89,11 +93,42 @@ function FoodPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Alimentação" back={false} action={<Button asChild variant="soft" size="sm"><Link to="/alimentacao/historico"><History aria-hidden /> Histórico</Link></Button>} />
+      {recentMeal && (
+        <Card>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Última refeição</p>
+              <p className="mt-1 font-bold">{MEAL_LABEL[recentMeal.meal_type]}</p>
+              <p className="text-xs text-muted-foreground">{fmtDateTime(recentMeal.eaten_at)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-extrabold text-primary">{fmtNum(recentMeal.total_carbs_g)} g</p>
+              <p className="text-xs text-muted-foreground">carboidratos</p>
+            </div>
+          </div>
+          <div className="mt-3 border-t pt-3">
+            <p className="text-xs text-muted-foreground">
+              {recentMeal.items.length} {recentMeal.items.length === 1 ? "alimento registrado" : "alimentos registrados"}
+              {recentMealProfile?.carbs_g_per_unit
+                ? ` · Relação cadastrada: 1 UI para ${fmtNum(recentMealProfile.carbs_g_per_unit)} g`
+                : ""}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Insulina a aplicar: não calculada. A relação de carboidratos não considera aplicações recentes.
+            </p>
+          </div>
+          {!readOnly && (
+            <Button asChild variant="outline" className="mt-3 w-full">
+              <Link to="/monitor/insulina/nova">Registrar insulina aplicada</Link>
+            </Button>
+          )}
+        </Card>
+      )}
 
-      <Notice tone="info" icon={<Info className="mt-0.5 h-4 w-4 shrink-0" />}>
-        TACO 4ª edição (NEPA/UNICAMP) disponível: 597 alimentos, com valores por 100 g da parte comestível. Preserve o preparo indicado no nome ao escolher o alimento.
-        {mode === "demo" && <> Os alimentos identificados como exemplos têm valores <strong>fictícios</strong> e não devem ser usados para decisões.</>}
-      </Notice>
+      <p className="px-1 text-xs text-muted-foreground">
+        Fonte nutricional: TACO/UNICAMP (597 alimentos), por 100 g.
+        {mode === "demo" && " Exemplos fictícios são apenas para testes."}
+      </p>
 
 
       <Card>
@@ -190,6 +225,12 @@ function FoodPage() {
                 {(Object.keys(MEAL_LABEL) as MealType[]).map((k) => <option key={k} value={k}>{MEAL_LABEL[k]}</option>)}
               </select>
             </Field>
+            {currentMealProfile && (
+              <div className="rounded-lg bg-muted p-3 text-sm">
+                <p className="font-semibold">Fatores cadastrados para {MEAL_LABEL[mealType]}</p>
+                <p className="mt-1 text-muted-foreground">1 U para {fmtNum(currentMealProfile.carbs_g_per_unit)} g de carboidratos; sensibilidade {fmtNum(currentMealProfile.sensitivity_mgdl_per_unit)} mg/dL por U. Apenas consulta da prescrição, sem cálculo de dose.</p>
+              </div>
+            )}
             <Field id="et" label="Horário"><Input id="et" type="datetime-local" className={inputCls} value={eatenAt} onChange={(e) => setEatenAt(e.target.value)} /></Field>
             <Field id="nt" label="Observações" optional><Textarea id="nt" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} /></Field>
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={fav} onCheckedChange={(v) => setFav(v === true)} /> Salvar como refeição favorita</label>

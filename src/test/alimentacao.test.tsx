@@ -65,6 +65,17 @@ afterEach(() => {
 });
 
 describe("Alimentação with local TACO", () => {
+  it("preenche o perfil fictício de demonstração por refeição", async () => {
+    setMode("demo");
+    const data = await store.getSettings("demo-patient");
+    expect(data.carb_ratios).toHaveLength(4);
+    expect(data.carb_ratios.map((entry) => entry.meal_type)).toEqual(["breakfast", "lunch", "snack", "dinner"]);
+    expect(data.carb_ratios.every((entry) => Number(entry.carbs_g_per_unit) > 0 && Number(entry.sensitivity_mgdl_per_unit) > 0)).toBe(true);
+    expect(data.basal_insulin_text).toContain("FICTÍCIA");
+    expect(data.clinical_instructions).toContain("SIMULADOS");
+  });
+
+
   it.each(["demo", "cloud"] as const)(
     "loads all TACO foods in %s mode without cloud food/meal queries",
     async (mode) => {

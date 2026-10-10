@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Activity, Droplet, History, RefreshCw, Syringe, TestTube, Utensils, Hourglass, CloudOff, CheckCircle2 } from "lucide-react";
+import { Activity, Droplet, History, RefreshCw, Syringe, Utensils, CloudOff, CheckCircle2 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
-import { RANGE_HOURS, type RangeKey, useAdministrations, useCatalog, useGlucose, useKetones, useMeals, useSettings } from "@/hooks/use-data";
+import { RANGE_HOURS, type RangeKey, useAdministrations, useCatalog, useGlucose, useKetones, useMeals, usePatientInsulins, useSettings } from "@/hooks/use-data";
 import { useOnline } from "@/hooks/use-online";
 import { classifyGlucose, isStale, STALE_AFTER_MIN } from "@/lib/glucose/status";
 import { PURPOSE_LABEL, TREND_LABEL, fmtDateTime, relativeAge } from "@/lib/domain/labels";
@@ -23,15 +23,16 @@ export const Route = createFileRoute("/_shell/monitor/")({
 });
 
 function Dashboard() {
-  const { patient, mode } = useApp();
+  const { patient, mode, readOnly } = useApp();
   const [range, setRange] = useState<RangeKey>("6h");
   const [glucoseTab, setGlucoseTab] = useState<"current" | "chart">("current");
   const hours = RANGE_HOURS[range];
   const glucose = useGlucose(hours);
   const latestQ = useGlucose(24);
   const settings = useSettings();
-  const admins = useAdministrations(10);
+  const admins = useAdministrations(50);
   const catalog = useCatalog();
+  const patientInsulins = usePatientInsulins();
   const meals = useMeals(30);
   const ketones = useKetones(30);
   const online = useOnline();
@@ -41,6 +42,15 @@ function Dashboard() {
   const band = latest && settings.data ? classifyGlucose(latest.value_mgdl, settings.data) : null;
   const lastAdmin = admins.data?.find((a) => !a.is_superseded && a.status === "performed");
   const insulinName = (id: string) => catalog.data?.find((c) => c.id === id)?.brand_name ?? "Insulina";
+  const rapidIds = new Set(patientInsulins.data?.filter((i) => i.role === "rapid").map((i) => i.insulin_id) ?? []);
+  const basalInUse = patientInsulins.data?.filter((i) => i.active && i.role === "basal") ?? [];
+  const timeNow = Date.now();
+  const recentRapid = (admins.data ?? [])
+    .filter((a) => a.status === "performed" && a.confirmed_by_user && !a.is_superseded &&
+      rapidIds.has(a.insulin_id) && Date.parse(a.administered_at) <= timeNow &&
+      Date.parse(a.administered_at) >= timeNow - 7 * 3600000)
+    .slice(0, 5);
+
 
   return (
     <div className="space-y-4">
@@ -102,6 +112,13 @@ function Dashboard() {
                 </Notice>
               </div>
             )}
+            {latest.value_mgdl >= 250 && latest.source !== "simulation" && (
+              <div className="mt-3">
+                <Notice tone="warning">
+                  <strong>Glicemia muito alta.</strong> Confira a leitura e siga o plano prescrito. Se a hiperglicemia persistir ou houver doença, confira as cetonas conforme a orientação da equipe. Vômitos, dor abdominal, respiração diferente ou sonolência exigem avaliação médica urgente.
+                </Notice>
+              </div>
+            )}
             {latest.source === "simulation" && (
               <div className="mt-3">
                 <Notice tone="sim">Valor SIMULADO para demonstração. Não representa a paciente.</Notice>
@@ -109,6 +126,10 @@ function Dashboard() {
             )}
           </>
         )}
+        <Link to="/monitor/glicemia" className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2.5 text-sm font-semibold text-primary hover:bg-muted">
+          <Droplet className="h-4 w-4" aria-hidden />
+          {readOnly ? "Ver histórico de glicemia" : "Registrar glicemia manual"}
+        </Link>
       </div>
         </section>
         <section role="tabpanel" id="panel-glucose-chart" aria-labelledby="tab-glucose-chart" hidden={glucoseTab !== "chart"}>
@@ -134,47 +155,61 @@ function Dashboard() {
         </section>
       </Card>
 
-      {/* Quick actions */}
-      <section aria-label="Ações rápidas" className="grid grid-cols-2 gap-3">
+      {/* Main actions: simple and immediately accessible. */}
+      <section aria-label="Ações principais" className="grid grid-cols-2 gap-3">
         <QuickAction to="/monitor/insulina/nova" icon={<Syringe />} label="Registrar insulina" primary />
-        <QuickAction to="/monitor/glicemia" icon={<Droplet />} label="Glicemia manual" />
         <QuickAction to="/alimentacao" icon={<Utensils />} label="Registrar refeição" />
-        <QuickAction to="/monitor/insulina" icon={<History />} label="Histórico de insulina" />
-        <QuickAction to="/monitor/cetonas" icon={<TestTube />} label="Cetonas (opcional)" />
       </section>
 
-      {/* Insulin */}
+      {/* A compact summary; full insulin history remains one tap away. */}
       <Card>
-        <CardTitle icon={<Syringe className="h-4 w-4" />} action={<Link to="/monitor/insulina" className="text-sm font-semibold text-primary">Ver tudo</Link>}>
-          Insulina administrada
-        </CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle icon={<Syringe className="h-4 w-4" />}>Insulina</CardTitle>
+          <Link to="/monitor/insulina" className="flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary">
+            <History className="h-4 w-4" aria-hidden />
+            Histórico
+          </Link>
+        </div>
         {admins.isLoading ? (
           <LoadingState />
         ) : admins.error ? (
           <ErrorState error={admins.error} />
         ) : !lastAdmin ? (
-          <EmptyState title="Nenhuma aplicação registrada" />
+          <p className="text-sm text-muted-foreground">Nenhuma aplicação informada.</p>
         ) : (
-          <>
-            <div className="rounded-xl bg-primary-soft p-3">
-              <p className="text-xs font-semibold uppercase text-primary">Última aplicação registrada</p>
-              <p className="mt-1 text-3xl font-extrabold">{lastAdmin.dose_units.toLocaleString("pt-BR")} <span className="text-base font-semibold">UI</span></p>
-              <p className="font-semibold">{insulinName(lastAdmin.insulin_id)}</p>
-              <p className="text-sm text-muted-foreground">{PURPOSE_LABEL[lastAdmin.purpose]} · {fmtDateTime(lastAdmin.administered_at)} ({relativeAge(lastAdmin.administered_at)})</p>
-            </div>
-            <ul className="mt-3 divide-y">
-              {admins.data!.filter((a) => a.id !== lastAdmin.id && !a.is_superseded).slice(0, 4).map((a) => (
-                <li key={a.id} className="flex items-center justify-between py-2 text-sm">
-                  <span className="min-w-0 truncate">{insulinName(a.insulin_id)} · {PURPOSE_LABEL[a.purpose]}{a.status === "planned" && <strong className="ml-1 text-warning-foreground">(planejada)</strong>}</span>
-                  <span className="shrink-0 pl-2 font-semibold">{a.dose_units} UI · {fmtDateTime(a.administered_at)}</span>
+          <div className="rounded-xl bg-primary-soft p-3">
+            <p className="text-xs font-medium text-muted-foreground">Última aplicação informada</p>
+            <p className="mt-1 text-lg font-bold">
+              {lastAdmin.dose_units.toLocaleString("pt-BR")} UI · {insulinName(lastAdmin.insulin_id)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {PURPOSE_LABEL[lastAdmin.purpose]} · {fmtDateTime(lastAdmin.administered_at)} ({relativeAge(lastAdmin.administered_at)})
+            </p>
+          </div>
+        )}
+        <div className="mt-3 space-y-2 rounded-lg border border-dashed p-3">
+          <p className="text-sm font-semibold">Aplicações rápidas nas últimas 7 horas</p>
+          {admins.isLoading || patientInsulins.isLoading ? (
+            <LoadingState />
+          ) : recentRapid.length ? (
+            <ul className="space-y-1 text-sm">
+              {recentRapid.map((a) => (
+                <li key={a.id} className="flex flex-wrap justify-between gap-1">
+                  <span>{insulinName(a.insulin_id)} · {a.dose_units.toLocaleString("pt-BR")} UI</span>
+                  <span className="text-muted-foreground">{relativeAge(a.administered_at)}</span>
                 </li>
               ))}
             </ul>
-          </>
-        )}
-        <div className="mt-3 rounded-xl border border-dashed p-3">
-          <p className="flex items-center gap-2 text-sm font-semibold"><Hourglass className="h-4 w-4 text-muted-foreground" aria-hidden /> Insulina ativa (IOB)</p>
-          <p className="mt-1 text-sm text-muted-foreground">Estimativa de insulina ativa indisponível até validação do modelo farmacológico.</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhuma aplicação rápida confirmada neste período do histórico consultado.</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Fiasp costuma agir por várias horas; os registros acima não determinam o IOB, nem se é seguro repetir uma dose.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Insulina basal{basalInUse.length ? ` em uso: ${basalInUse.map((i) => insulinName(i.insulin_id)).join(", ")}` : ""}.
+            Ação prolongada, acompanhada separadamente. Não é somada à insulina rápida.
+          </p>
         </div>
       </Card>
 

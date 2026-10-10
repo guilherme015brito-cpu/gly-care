@@ -57,7 +57,22 @@ class DemoStore implements DataStore {
   private ketones: KetoneReading[] = [];
   private foods: Food[] = seedFoods();
   private meals: MealEntry[] = [];
-  private settings: ClinicalSettings = { patient_id: DEMO_PID, ...DEFAULT_SETTINGS };
+  private settings: ClinicalSettings = {
+    patient_id: DEMO_PID,
+    ...DEFAULT_SETTINGS,
+    target_glucose_text: "110 mg/dL (FICTÍCIO)",
+    sensitivity_factor_text: "Valores inventados exclusivamente para testar o formulário",
+    carb_ratios: [
+      { from: "", to: "", meal_type: "breakfast", ratio_text: "1 : 15", carbs_g_per_unit: 15, sensitivity_mgdl_per_unit: 45 },
+      { from: "", to: "", meal_type: "lunch", ratio_text: "1 : 14", carbs_g_per_unit: 14, sensitivity_mgdl_per_unit: 50 },
+      { from: "", to: "", meal_type: "snack", ratio_text: "1 : 16", carbs_g_per_unit: 16, sensitivity_mgdl_per_unit: 55 },
+      { from: "", to: "", meal_type: "dinner", ratio_text: "1 : 20", carbs_g_per_unit: 20, sensitivity_mgdl_per_unit: 60 },
+    ],
+    rapid_insulin_text: "Insulina rápida EXEMPLO (FICTÍCIA)",
+    basal_insulin_text: "Insulina basal EXEMPLO (FICTÍCIA)",
+    administration_times: "22:00 — exemplo não clínico",
+    clinical_instructions: "DADOS SIMULADOS. Não utilizar os valores para decisões médicas.",
+  };
   private patient: Patient = { id: DEMO_PID, nickname: "Paciente Demonstração", birth_date: null, role: "caregiver" };
   private audit: AuditEntry[] = [];
   private seeded = false;
@@ -85,6 +100,15 @@ class DemoStore implements DataStore {
         items: [
           { id: uid(), food_id: f[0]!.id, food_name: f[0]!.name, food_source: "fictional_example", grams: 100, carbs_g: 30, protein_g: 2.5, fat_g: 0.3, kcal: 135 },
           { id: uid(), food_id: f[1]!.id, food_name: f[1]!.name, food_source: "fictional_example", grams: 100, carbs_g: 14, protein_g: 5, fat_g: 0.5, kcal: 80 },
+        ] },
+      { id: uid(), patient_id: DEMO_PID, meal_type: "breakfast", eaten_at: h(16), total_carbs_g: 49.5, total_protein_g: 5.2, total_fat_g: 1.7, total_kcal: 240, has_missing_values: false, notes: "Café da manhã de teste (fictício)", is_favorite: false, favorite_name: null,
+        items: [
+          { id: uid(), food_id: f[2]!.id, food_name: f[2]!.name, food_source: "fictional_example", grams: 50, carbs_g: 27.5, protein_g: 4, fat_g: 1.5, kcal: 145 },
+          { id: uid(), food_id: f[3]!.id, food_name: f[3]!.name, food_source: "fictional_example", grams: 100, carbs_g: 22, protein_g: 1.2, fat_g: 0.2, kcal: 95 },
+        ] },
+      { id: uid(), patient_id: DEMO_PID, meal_type: "dinner", eaten_at: h(28), total_carbs_g: 24, total_protein_g: 2, total_fat_g: 0.24, total_kcal: 108, has_missing_values: false, notes: "Jantar de teste (fictício)", is_favorite: false, favorite_name: null,
+        items: [
+          { id: uid(), food_id: f[0]!.id, food_name: f[0]!.name, food_source: "fictional_example", grams: 80, carbs_g: 24, protein_g: 2, fat_g: 0.24, kcal: 108 },
         ] },
     ];
   }
