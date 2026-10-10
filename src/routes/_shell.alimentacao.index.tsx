@@ -53,7 +53,6 @@ function FoodPage() {
   const [favName, setFavName] = useState("");
   const toggleFav = useStoreMutation((s, _p, v: { id: string; fav: boolean }) => s.toggleFoodFavorite(v.id, v.fav));
   const save = useStoreMutation((s, pid, m: NewMeal) => {
-    if (s.mode !== "demo") throw new Error("O registro de refeições está temporariamente indisponível no modo autenticado.");
     if (m.items.some((item) => item.carbs_g == null)) throw new Error("Total de carboidratos incompleto. A refeição não foi registrada.");
     return s.addMeal(pid, m);
   }, "Refeição registrada");
@@ -81,7 +80,7 @@ function FoodPage() {
   }
 
   function submit() {
-    if (readOnly || mode !== "demo" || !allValid || totals.carbs_g == null) return;
+    if (readOnly || !allValid || totals.carbs_g == null) return;
     save.mutate(
       { meal_type: mealType, eaten_at: new Date(eatenAt).toISOString(), notes: notes.trim() || null, is_favorite: fav, favorite_name: fav ? favName.trim().slice(0, 80) || MEAL_LABEL[mealType] : null, items: computed.map((c) => c.item!), totals: { ...totals, carbs_g: totals.carbs_g } },
       { onSuccess: () => { setLines([]); setNotes(""); setFav(false); setFavName(""); setEatenAt(nowLocalInput()); } },
@@ -96,7 +95,7 @@ function FoodPage() {
         TACO 4ª edição (NEPA/UNICAMP) disponível: 597 alimentos, com valores por 100 g da parte comestível. Preserve o preparo indicado no nome ao escolher o alimento.
         {mode === "demo" && <> Os alimentos identificados como exemplos têm valores <strong>fictícios</strong> e não devem ser usados para decisões.</>}
       </Notice>
-      {mode === "cloud" && <Notice>O registro de refeições está temporariamente desabilitado no modo autenticado: as tabelas de alimentos e refeições ainda não estão disponíveis no Supabase. A busca TACO e o cálculo por porção estão disponíveis.</Notice>}
+
 
       <Card>
         <CardTitle icon={<Search className="h-4 w-4" />} action={!readOnly && mode === "demo" && <Button asChild variant="ghost" size="sm"><Link to="/alimentacao/novo"><Plus aria-hidden /> Cadastrar</Link></Button>}>
@@ -194,7 +193,7 @@ function FoodPage() {
             <Field id="nt" label="Observações" optional><Textarea id="nt" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} /></Field>
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={fav} onCheckedChange={(v) => setFav(v === true)} /> Salvar como refeição favorita</label>
             {fav && <Input aria-label="Nome da favorita" placeholder="Nome (ex.: Café padrão)" className={inputCls} value={favName} onChange={(e) => setFavName(e.target.value)} maxLength={80} />}
-            <Button size="lg" className="w-full" disabled={mode !== "demo" || !allValid || totals.carbs_g == null || save.isPending} onClick={submit}>{save.isPending ? "Salvando…" : "Registrar refeição"}</Button>
+            <Button size="lg" className="w-full" disabled={!allValid || totals.carbs_g == null || save.isPending} onClick={submit}>{save.isPending ? "Salvando…" : "Registrar refeição"}</Button>
             <p className="text-center text-xs text-muted-foreground">O GlyCare não sugere doses de insulina com base nos carboidratos.</p>
           </div>
         )}
