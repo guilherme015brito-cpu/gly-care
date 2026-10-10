@@ -30,6 +30,16 @@ export const Route = createFileRoute("/_shell/alimentacao/")({
 
 interface Line { key: string; food: Food; grams: string; includesInedible: boolean }
 
+// Remove accent marks and normalize punctuation/spacing, preserving source food labels.
+function normalizeFoodSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 function FoodPage() {
   const { readOnly, mode } = usePatientStore();
   const foods = useFoods();
@@ -50,8 +60,10 @@ function FoodPage() {
 
   const suggestions = useMemo(() => {
     const all = foods.data ?? [];
-    const n = q.trim().toLowerCase();
-    const list = n ? all.filter((f) => f.name.toLowerCase().includes(n) || (f.preparation ?? "").toLowerCase().includes(n)) : all.filter((f) => f.is_favorite).concat(all.filter((f) => !f.is_favorite));
+    const n = normalizeFoodSearch(q);
+    const list = n
+      ? all.filter((f) => normalizeFoodSearch(f.name).includes(n) || normalizeFoodSearch(f.preparation ?? "").includes(n))
+      : all.filter((f) => f.is_favorite).concat(all.filter((f) => !f.is_favorite));
     return list.slice(0, 12);
   }, [foods.data, q]);
 
