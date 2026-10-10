@@ -57,7 +57,19 @@ class DemoStore implements DataStore {
   private ketones: KetoneReading[] = [];
   private foods: Food[] = seedFoods();
   private meals: MealEntry[] = [];
-  private settings: ClinicalSettings = { patient_id: DEMO_PID, ...DEFAULT_SETTINGS };
+  private settings: ClinicalSettings = {
+    patient_id: DEMO_PID,
+    ...DEFAULT_SETTINGS,
+    target_glucose_text: "110 mg/dL (FICTÍCIO)",
+    sensitivity_factor_text: "Valores inventados exclusivamente para testar o formulário",
+    carb_ratios: [
+      { from: "", to: "", meal_type: "breakfast", ratio_text: "1 : 15", carbs_g_per_unit: 15, sensitivity_mgdl_per_unit: 45 },
+      { from: "", to: "", meal_type: "lunch", ratio_text: "1 : 14", carbs_g_per_unit: 14, sensitivity_mgdl_per_unit: 50 },
+      { from: "", to: "", meal_type: "snack", ratio_text: "1 : 16", carbs_g_per_unit: 16, sensitivity_mgdl_per_unit: 55 },
+      { from: "", to: "", meal_type: "dinner", ratio_text: "1 : 20", carbs_g_per_unit: 20, sensitivity_mgdl_per_unit: 60 },
+    ],
+    clinical_instructions: "DADOS SIMULADOS. Não utilizar os valores para decisões médicas.",
+  };
   private patient: Patient = { id: DEMO_PID, nickname: "Paciente Demonstração", birth_date: null, role: "caregiver" };
   private audit: AuditEntry[] = [];
   private seeded = false;
