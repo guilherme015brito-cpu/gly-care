@@ -47,8 +47,8 @@ export function useFoods() {
 export function useMeals(limit = 50) {
   const { store, pid, key } = usePatientStore();
   return useQuery({
-    queryKey: [...key, "meals", limit, "demo-only"],
-    queryFn: (): Promise<MealEntry[]> => store.mode === "demo" ? store.listMeals(pid, limit) : Promise.resolve([]),
+    queryKey: [...key, "meals", limit],
+    queryFn: (): Promise<MealEntry[]> => store.listMeals(pid, limit),
   });
 }
 export function useSettings() {
