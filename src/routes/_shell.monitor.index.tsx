@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Activity, Droplet, History, RefreshCw, Syringe, TestTube, Utensils, Hourglass, CloudOff, CheckCircle2 } from "lucide-react";
+import { Activity, Droplet, History, RefreshCw, Syringe, Utensils, Hourglass, CloudOff, CheckCircle2 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { RANGE_HOURS, type RangeKey, useAdministrations, useCatalog, useGlucose, useKetones, useMeals, useSettings } from "@/hooks/use-data";
 import { useOnline } from "@/hooks/use-online";
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_shell/monitor/")({
 });
 
 function Dashboard() {
-  const { patient, mode } = useApp();
+  const { patient, mode, readOnly } = useApp();
   const [range, setRange] = useState<RangeKey>("6h");
   const [glucoseTab, setGlucoseTab] = useState<"current" | "chart">("current");
   const hours = RANGE_HOURS[range];
@@ -109,6 +109,10 @@ function Dashboard() {
             )}
           </>
         )}
+        <Link to="/monitor/glicemia" className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2.5 text-sm font-semibold text-primary hover:bg-muted">
+          <Droplet className="h-4 w-4" aria-hidden />
+          {readOnly ? "Ver histórico de glicemia" : "Registrar glicemia manual"}
+        </Link>
       </div>
         </section>
         <section role="tabpanel" id="panel-glucose-chart" aria-labelledby="tab-glucose-chart" hidden={glucoseTab !== "chart"}>
@@ -134,19 +138,16 @@ function Dashboard() {
         </section>
       </Card>
 
-      {/* Quick actions */}
-      <section aria-label="Ações rápidas" className="grid grid-cols-2 gap-3">
+      {/* Main actions: simple and immediately accessible. */}
+      <section aria-label="Ações principais" className="grid grid-cols-2 gap-3">
         <QuickAction to="/monitor/insulina/nova" icon={<Syringe />} label="Registrar insulina" primary />
-        <QuickAction to="/monitor/glicemia" icon={<Droplet />} label="Glicemia manual" />
         <QuickAction to="/alimentacao" icon={<Utensils />} label="Registrar refeição" />
-        <QuickAction to="/monitor/insulina" icon={<History />} label="Histórico de insulina" />
-        <QuickAction to="/monitor/cetonas" icon={<TestTube />} label="Cetonas (opcional)" />
       </section>
 
       {/* Insulin */}
       <Card>
-        <CardTitle icon={<Syringe className="h-4 w-4" />} action={<Link to="/monitor/insulina" className="text-sm font-semibold text-primary">Ver tudo</Link>}>
-          Insulina administrada
+        <CardTitle icon={<Syringe className="h-4 w-4" />}>
+          Aplicações de insulina
         </CardTitle>
         {admins.isLoading ? (
           <LoadingState />
@@ -172,9 +173,13 @@ function Dashboard() {
             </ul>
           </>
         )}
+        <Link to="/monitor/insulina" className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2.5 text-sm font-semibold text-primary hover:bg-muted">
+          <History className="h-4 w-4" aria-hidden />
+          Ver histórico de insulina
+        </Link>
         <div className="mt-3 rounded-xl border border-dashed p-3">
           <p className="flex items-center gap-2 text-sm font-semibold"><Hourglass className="h-4 w-4 text-muted-foreground" aria-hidden /> Insulina ativa (IOB)</p>
-          <p className="mt-1 text-sm text-muted-foreground">Estimativa de insulina ativa indisponível até validação do modelo farmacológico.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Estimativa indisponível até validação do modelo farmacológico.</p>
         </div>
       </Card>
 
