@@ -149,10 +149,19 @@ export interface MealEntry {
   items: MealItem[];
 }
 
+/** Legacy time-based entries and meal-specific prescription reference records.
+ * A meal profile is selected explicitly, never inferred from the clock.
+ * These values are stored for display only; they do not authorize dose advice.
+ */
+export type PrescribedMeal = "breakfast" | "lunch" | "snack" | "dinner";
+
 export interface CarbRatio {
-  from: string; // "HH:MM"
+  from: string; // "HH:MM" for legacy time-based entries; blank for named meals
   to: string;
   ratio_text: string;
+  meal_type?: PrescribedMeal;
+  sensitivity_mgdl_per_unit?: number | null;
+  carbs_g_per_unit?: number | null;
 }
 
 export interface ClinicalSettings {
