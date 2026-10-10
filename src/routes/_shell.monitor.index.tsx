@@ -25,6 +25,7 @@ export const Route = createFileRoute("/_shell/monitor/")({
 function Dashboard() {
   const { patient, mode } = useApp();
   const [range, setRange] = useState<RangeKey>("6h");
+  const [glucoseTab, setGlucoseTab] = useState<"current" | "chart">("current");
   const hours = RANGE_HOURS[range];
   const glucose = useGlucose(hours);
   const latestQ = useGlucose(24);
@@ -54,8 +55,14 @@ function Dashboard() {
         </span>
       </header>
 
-      {/* Current glucose */}
-      <Card aria-labelledby="g-title">
+      {/* Glucose summary and trend share a single, keyboard-accessible card. */}
+      <Card>
+        <div role="tablist" aria-label="Visualização da glicemia" className="mb-4 grid grid-cols-2 rounded-xl bg-muted p-1">
+          <button type="button" role="tab" id="tab-glucose-current" aria-selected={glucoseTab === "current"} aria-controls="panel-glucose-current" onClick={() => setGlucoseTab("current")} className={cn("min-h-11 rounded-lg text-sm font-bold", glucoseTab === "current" ? "bg-card text-primary shadow-sm" : "text-muted-foreground")}>Glicemia atual</button>
+          <button type="button" role="tab" id="tab-glucose-chart" aria-selected={glucoseTab === "chart"} aria-controls="panel-glucose-chart" onClick={() => setGlucoseTab("chart")} className={cn("min-h-11 rounded-lg text-sm font-bold", glucoseTab === "chart" ? "bg-card text-primary shadow-sm" : "text-muted-foreground")}>Gráfico</button>
+        </div>
+        <section role="tabpanel" id="panel-glucose-current" aria-labelledby="tab-glucose-current" hidden={glucoseTab !== "current"}>
+      <div aria-labelledby="g-title">
         <div className="flex items-center justify-between">
           <h2 id="g-title" className="text-sm font-semibold text-muted-foreground">Glicemia mais recente</h2>
           <button onClick={() => latestQ.refetch()} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted" aria-label="Atualizar leituras">
@@ -102,10 +109,10 @@ function Dashboard() {
             )}
           </>
         )}
-      </Card>
-
-      {/* Chart */}
-      <Card>
+      </div>
+        </section>
+        <section role="tabpanel" id="panel-glucose-chart" aria-labelledby="tab-glucose-chart" hidden={glucoseTab !== "chart"}>
+      <div>
         <CardTitle icon={<Activity className="h-4 w-4" />}>Gráfico de glicemia</CardTitle>
         <div role="radiogroup" aria-label="Período" className="mb-3 grid grid-cols-5 gap-1 rounded-xl bg-muted p-1">
           {(Object.keys(RANGE_HOURS) as RangeKey[]).map((k) => (
@@ -123,15 +130,17 @@ function Dashboard() {
         ) : (
           <GlucoseChart readings={glucose.data} settings={settings.data} meals={meals.data ?? []} admins={admins.data ?? []} ketones={ketones.data ?? []} hours={hours} />
         )}
+      </div>
+        </section>
       </Card>
 
       {/* Quick actions */}
       <section aria-label="Ações rápidas" className="grid grid-cols-2 gap-3">
-        <QuickAction to="/monitor/insulina/nova" icon={<Syringe />} label="Registrar aplicação" primary />
+        <QuickAction to="/monitor/insulina/nova" icon={<Syringe />} label="Registrar insulina" primary />
         <QuickAction to="/monitor/glicemia" icon={<Droplet />} label="Glicemia manual" />
-        <QuickAction to="/monitor/cetonas" icon={<TestTube />} label="Registrar cetonas" />
         <QuickAction to="/alimentacao" icon={<Utensils />} label="Registrar refeição" />
-        <QuickAction to="/monitor/insulina" icon={<History />} label="Histórico" className="col-span-2" />
+        <QuickAction to="/monitor/insulina" icon={<History />} label="Histórico de insulina" />
+        <QuickAction to="/monitor/cetonas" icon={<TestTube />} label="Cetonas (opcional)" />
       </section>
 
       {/* Insulin */}
