@@ -68,6 +68,9 @@ class DemoStore implements DataStore {
       { from: "", to: "", meal_type: "snack", ratio_text: "1 : 16", carbs_g_per_unit: 16, sensitivity_mgdl_per_unit: 55 },
       { from: "", to: "", meal_type: "dinner", ratio_text: "1 : 20", carbs_g_per_unit: 20, sensitivity_mgdl_per_unit: 60 },
     ],
+    rapid_insulin_text: "Insulina rápida EXEMPLO (FICTÍCIA)",
+    basal_insulin_text: "Insulina basal EXEMPLO (FICTÍCIA)",
+    administration_times: "22:00 — exemplo não clínico",
     clinical_instructions: "DADOS SIMULADOS. Não utilizar os valores para decisões médicas.",
   };
   private patient: Patient = { id: DEMO_PID, nickname: "Paciente Demonstração", birth_date: null, role: "caregiver" };
