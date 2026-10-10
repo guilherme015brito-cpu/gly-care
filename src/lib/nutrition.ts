@@ -1,7 +1,7 @@
 import type { Food, MealItem } from "./domain/types";
 
 export interface NutrientTotals {
-  carbs_g: number;
+  carbs_g: number | null;
   protein_g: number | null;
   fat_g: number | null;
   kcal: number | null;
@@ -67,7 +67,7 @@ export function sumItems(items: Array<Pick<MealItem, "carbs_g" | "protein_g" | "
     else kcal += it.kcal;
   }
   return {
-    carbs_g: round1(carbs),
+    carbs_g: missing.has("carbs") ? null : round1(carbs),
     protein_g: missing.has("protein") ? null : round1(protein),
     fat_g: missing.has("fat") ? null : round1(fat),
     kcal: missing.has("kcal") ? null : round1(kcal),

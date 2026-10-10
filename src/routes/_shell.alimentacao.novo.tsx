@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_shell/alimentacao/novo")({
 });
 
 function NewFood() {
-  const { readOnly } = usePatientStore();
+  const { readOnly, mode } = usePatientStore();
   const navigate = useNavigate();
   const [f, setF] = useState({ name: "", preparation: "", state: "not_applicable" as FoodInput["state"], source: "manual" as FoodInput["source"], source_reference: "", carbs_per_100g: "", protein_per_100g: "", fat_per_100g: "", kcal_per_100g: "", edible_portion_pct: "100" });
   const [errors, setErrors] = useState<Errors>({});
@@ -30,12 +30,14 @@ function NewFood() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (readOnly || mode !== "demo") return;
     const r = foodSchema.safeParse(f);
     if (!r.success) return setErrors(zodErrors(r.error));
     setErrors({});
     save.mutate(r.data, { onSuccess: () => navigate({ to: "/alimentacao" }) });
   }
   if (readOnly) return <Notice>Acesso somente leitura.</Notice>;
+  if (mode === "cloud") return <Notice>O cadastro de alimentos está temporariamente indisponível: a tabela de alimentos ainda não existe no Supabase. A busca TACO está disponível na tela Alimentação.</Notice>;
 
   return (
     <div className="space-y-4">
