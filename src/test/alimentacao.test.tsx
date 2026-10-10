@@ -66,7 +66,7 @@ afterEach(() => {
 
 describe("Alimentação with local TACO", () => {
   it.each(["demo", "cloud"] as const)(
-    "loads all TACO foods in %s mode without cloud food/meal queries",
+    "loads all TACO foods in %s mode without querying cloud food tables",
     async (mode) => {
       setMode(mode);
       const { result } = renderHook(() => ({ foods: useFoods(), meals: useMeals() }), { wrapper });
@@ -76,7 +76,7 @@ describe("Alimentação with local TACO", () => {
       expect(result.current.foods.data!.filter((food) => food.source === "TACO")).toHaveLength(597);
       if (mode === "cloud") {
         expect(store.listFoods).not.toHaveBeenCalled();
-        expect(store.listMeals).not.toHaveBeenCalled();
+        expect(store.listMeals).toHaveBeenCalledWith("demo-patient", 50);
         expect(result.current.meals.data).toEqual([]);
         expect(result.current.foods.data).toHaveLength(597);
       } else {
@@ -104,6 +104,20 @@ describe("Alimentação with local TACO", () => {
     expect(screen.getByText("28,1 g carb")).toBeInTheDocument();
     expect(screen.getByText("10,9 g carb")).toBeInTheDocument();
     expect(screen.getByText("0 g carb")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Horário"), { target: { value: "2026-10-10T12:00" } });
+    const latest = (await store.listGlucose("demo-patient", new Date(Date.now() - 86400000))).at(
+      -1,
+    )!;
+    await waitFor(() =>
+      expect(screen.getByLabelText("Glicemia fictícia (mg/dL)")).toHaveValue(
+        String(latest.value_mgdl),
+      ),
+    );
+    fireEvent.change(screen.getByLabelText("Glicemia fictícia (mg/dL)"), {
+      target: { value: "180" },
+    });
+    expect(await screen.findByText("Refeição: 39 ÷ 12")).toBeInTheDocument();
+    expect(screen.getByText("5,5")).toBeInTheDocument();
     const before = (await store.listMeals("demo-patient")).length;
     fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
     await waitFor(async () =>
@@ -127,7 +141,9 @@ describe("Alimentação with local TACO", () => {
       ["FEIJÃO", "Feijão, carioca, cozido"],
     ] as const) {
       fireEvent.change(search, { target: { value: typed } });
-      expect(await screen.findByRole("button", { name: `Adicionar ${expected}` })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: `Adicionar ${expected}` }),
+      ).toBeInTheDocument();
     }
   });
 
@@ -150,7 +166,9 @@ describe("Alimentação with local TACO", () => {
   it("allows a complete authenticated meal and loads the cloud history", async () => {
     setMode("cloud");
     const savedMeals: Array<unknown> = [];
-    store.addMeal = vi.fn(async (_pid, meal) => { savedMeals.push(meal); });
+    store.addMeal = vi.fn(async (_pid, meal) => {
+      savedMeals.push(meal);
+    });
     store.listMeals = vi.fn().mockResolvedValue([]);
     render(<FoodPage />, { wrapper });
     await add("Arroz, tipo 1, cozido", "80");

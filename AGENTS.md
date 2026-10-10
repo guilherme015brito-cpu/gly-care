@@ -13,7 +13,7 @@
 - All data access goes through the `DataStore` interface (src/lib/data/store.ts) with a demo (in-memory) and a Cloud implementation — keeps demo mode isolated and lets backends be swapped.
 - Glucose sources implement `GlucoseProvider` (src/lib/glucose/providers.ts); ingestion is idempotent via provider+external_id / provider+timestamp — prevents duplicates from any source.
 - Clinical data is never persisted on the device (no localStorage/IndexedDB caches) — LGPD and offline-safety requirement.
-- The app never computes or suggests insulin doses or IOB — out of scope until a validated pharmacological model exists.
+- Automatic meal and glucose-correction calculators are enabled in demo mode, as explicitly requested by the user. Use the configured target, sensitivity and time-based carbohydrate ratio with the original TACO totals. Remove obsolete blanket prohibitions on these demo features. Keep demo data isolated from Cloud patient records, validate numeric inputs and never fabricate missing TACO nutrients. IOB is not part of these arithmetic simulations.
 - Insulin administrations are never deleted; corrections insert a new row with `supersedes_id` — preserves audit trail.
 - Patient-scoped tables use RLS via `is_patient_member` / `can_write_patient` / `is_patient_caregiver` security-definer helpers — avoids recursive policies.
 - Authenticated app screens live under the pathless `_shell` layout with `ssr: false` — session lives in browser storage.

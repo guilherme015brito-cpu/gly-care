@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { Activity, Settings, Utensils, WifiOff, FlaskConical, Eye } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { useOnline } from "@/hooks/use-online";
-import { cn } from "@/lib/utils";
 
 const TABS = [
   { to: "/monitor", label: "Monitoramento", icon: Activity },
@@ -12,49 +11,84 @@ const TABS = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { mode, readOnly } = useApp();
+  const { mode, readOnly, patient } = useApp();
   const online = useOnline();
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[480px] flex-col bg-background">
-      {mode === "demo" && (
-        <div role="status" className="sticky top-0 z-30 flex items-center justify-center gap-2 bg-sim px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-primary-foreground">
-          <FlaskConical className="h-3.5 w-3.5" aria-hidden />
-          Demonstração · dados simulados · nada é salvo
+    <div className="app-shell">
+      <aside className="desktop-sidebar">
+        <Link to="/monitor" className="app-brand">
+          <img src="/icon-192.png" alt="" />
+          Gly<span>Care</span>
+        </Link>
+        <p className="sidebar-caption">ACOMPANHAMENTO</p>
+        <nav aria-label="Navegação desktop">
+          {TABS.map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              activeOptions={{ exact: false }}
+              activeProps={{ "aria-current": "page" }}
+              className="sidebar-link"
+            >
+              <Icon size={19} aria-hidden />
+              {label}
+            </Link>
+          ))}
+        </nav>
+        <div className="sidebar-patient">
+          <span className="patient-avatar">{patient?.nickname?.slice(0, 1) ?? "G"}</span>
+          <div>
+            <strong>{patient?.nickname}</strong>
+            <span>{mode === "demo" ? "Perfil de demonstração" : "Perfil acompanhado"}</span>
+          </div>
         </div>
-      )}
-      {!online && (
-        <div role="alert" className="sticky top-0 z-30 flex items-center justify-center gap-2 bg-warning px-3 py-1.5 text-xs font-bold text-foreground">
-          <WifiOff className="h-3.5 w-3.5" aria-hidden />
-          Sem conexão — dados podem estar desatualizados e novos registros não serão salvos
+      </aside>
+      <div className="app-workspace">
+        <div className="workspace-topbar">
+          <Link to="/monitor" className="app-brand mobile-brand">
+            <img src="/icon-192.png" alt="" />
+            Gly<span>Care</span>
+          </Link>
+          <span className="desktop-topbar-label">Seu acompanhamento, em um só lugar</span>
+          <span className="connection-status">
+            <span className={online ? "connection-dot" : "connection-dot offline"} />
+            {online ? "Conectado" : "Offline"}
+          </span>
         </div>
-      )}
-      {readOnly && (
-        <div className="flex items-center justify-center gap-2 bg-info-soft px-3 py-1.5 text-xs font-semibold text-info">
-          <Eye className="h-3.5 w-3.5" aria-hidden /> Acesso somente leitura
-        </div>
-      )}
-      <main className="flex-1 px-4 pb-28 pt-2">{children}</main>
-      <nav
-        aria-label="Navegação principal"
-        className="safe-bottom fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[480px] border-t bg-card/95 backdrop-blur [box-shadow:var(--shadow-float)]"
-      >
-        <ul className="grid grid-cols-3">
+        {mode === "demo" && (
+          <div role="status" className="demo-banner">
+            <FlaskConical size={14} aria-hidden />
+            Demonstração · dados simulados · nada é salvo
+          </div>
+        )}
+        {!online && (
+          <div
+            role="alert"
+            className="flex items-center gap-2 bg-warning-soft px-5 py-2 text-sm text-warning-foreground"
+          >
+            <WifiOff size={16} aria-hidden />
+            Sem conexão. Os dados podem estar desatualizados.
+          </div>
+        )}
+        {readOnly && (
+          <div className="flex items-center gap-2 bg-info-soft px-5 py-2 text-sm text-info">
+            <Eye size={16} aria-hidden />
+            Acesso somente leitura
+          </div>
+        )}
+        <main className="workspace-main">{children}</main>
+      </div>
+      <nav aria-label="Navegação principal" className="mobile-navigation safe-bottom">
+        <ul>
           {TABS.map(({ to, label, icon: Icon }) => (
             <li key={to}>
               <Link
                 to={to}
-                className="group flex min-h-16 flex-col items-center justify-center gap-1 pt-2 text-xs font-semibold text-muted-foreground"
-                activeProps={{ className: "text-primary", "aria-current": "page" }}
                 activeOptions={{ exact: false }}
+                activeProps={{ "aria-current": "page" }}
               >
-                {({ isActive }) => (
-                  <>
-                    <span className={cn("flex h-8 w-14 items-center justify-center rounded-full transition-colors", isActive && "bg-primary-soft")}>
-                      <Icon className="h-5 w-5" aria-hidden />
-                    </span>
-                    {label}
-                  </>
-                )}
+                <Icon size={21} aria-hidden />
+                <span>{label}</span>
               </Link>
             </li>
           ))}
