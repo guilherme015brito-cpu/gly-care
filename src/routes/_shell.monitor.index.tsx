@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Activity, Droplet, History, RefreshCw, Syringe, Utensils, Hourglass, CloudOff, CheckCircle2 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
-import { RANGE_HOURS, type RangeKey, useAdministrations, useCatalog, useGlucose, useKetones, useMeals, useSettings } from "@/hooks/use-data";
+import { RANGE_HOURS, type RangeKey, useAdministrations, useCatalog, useGlucose, useKetones, useMeals, usePatientInsulins, useSettings } from "@/hooks/use-data";
 import { useOnline } from "@/hooks/use-online";
 import { classifyGlucose, isStale, STALE_AFTER_MIN } from "@/lib/glucose/status";
 import { PURPOSE_LABEL, TREND_LABEL, fmtDateTime, relativeAge } from "@/lib/domain/labels";
@@ -32,6 +32,7 @@ function Dashboard() {
   const settings = useSettings();
   const admins = useAdministrations(10);
   const catalog = useCatalog();
+  const patientInsulins = usePatientInsulins();
   const meals = useMeals(30);
   const ketones = useKetones(30);
   const online = useOnline();
@@ -41,6 +42,9 @@ function Dashboard() {
   const band = latest && settings.data ? classifyGlucose(latest.value_mgdl, settings.data) : null;
   const lastAdmin = admins.data?.find((a) => !a.is_superseded && a.status === "performed");
   const insulinName = (id: string) => catalog.data?.find((c) => c.id === id)?.brand_name ?? "Insulina";
+  const rapidInsulinIds = new Set(patientInsulins.data?.filter((p) => p.role === "rapid").map((p) => p.insulin_id) ?? []);
+  const lastRapid = admins.data?.find((a) => !a.is_superseded && a.status === "performed" && rapidInsulinIds.has(a.insulin_id));
+  const lastRapidIsFiasp = lastRapid ? /fiasp/i.test(insulinName(lastRapid.insulin_id)) : false;
 
   return (
     <div className="space-y-4">
@@ -178,8 +182,14 @@ function Dashboard() {
           Ver histórico de insulina
         </Link>
         <div className="mt-3 rounded-xl border border-dashed p-3">
-          <p className="flex items-center gap-2 text-sm font-semibold"><Hourglass className="h-4 w-4 text-muted-foreground" aria-hidden /> Insulina ativa (IOB)</p>
-          <p className="mt-1 text-sm text-muted-foreground">Estimativa indisponível até validação do modelo farmacológico.</p>
+          <p className="flex items-center gap-2 text-sm font-semibold"><Hourglass className="h-4 w-4 text-muted-foreground" aria-hidden /> Insulina rápida e ação residual</p>
+          {lastRapid ? (
+            <p className="mt-2 text-sm">Última aplicação rápida informada: <strong>{insulinName(lastRapid.insulin_id)}, {lastRapid.dose_units.toLocaleString("pt-BR")} UI</strong> · {fmtDateTime(lastRapid.administered_at)} ({relativeAge(lastRapid.administered_at)}).</p>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">Nenhuma aplicação de insulina rápida confirmada neste histórico.</p>
+          )}
+          {lastRapidIsFiasp && <p className="mt-2 text-sm text-muted-foreground">Referência farmacológica: Fiasp pode agir aproximadamente por 3 a 5 horas, com variação individual. Isso não indica quando aplicar outra dose.</p>}
+          <p className="mt-2 text-sm text-muted-foreground">Insulina ativa restante (IOB) não calculada. Uma aplicação recente pode se sobrepor à próxima; siga o plano clínico para refeições e correções.</p>
         </div>
       </Card>
 
