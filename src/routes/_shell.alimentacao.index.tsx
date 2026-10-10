@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useFoods, useMeals, useStoreMutation } from "@/hooks/use-data";
+import { useFoods, useMeals, useSettings, useStoreMutation } from "@/hooks/use-data";
 import { usePatientStore } from "@/lib/app-context";
 import { computeItem, sumItems } from "@/lib/nutrition";
 import { gramsSchema } from "@/lib/validation";
@@ -44,6 +44,7 @@ function FoodPage() {
   const { readOnly, mode } = usePatientStore();
   const foods = useFoods();
   const meals = useMeals(50);
+  const settings = useSettings();
   const [q, setQ] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [mealType, setMealType] = useState<MealType>("lunch");
@@ -73,6 +74,8 @@ function FoodPage() {
   const allValid = lines.length > 0 && computed.every((c) => c.valid);
   const favMeals = (meals.data ?? []).filter((m) => m.is_favorite);
   const recentMeal = meals.data?.[0];
+  const currentMealProfile = settings.data?.carb_ratios.find((r) => r.meal_type === mealType);
+  const recentMealProfile = settings.data?.carb_ratios.find((r) => r.meal_type === recentMeal?.meal_type);
 
   function addFood(f: Food) {
     setLines((ls) => [...ls, { key: crypto.randomUUID(), food: f, grams: "", includesInedible: false }]);
@@ -107,7 +110,10 @@ function FoodPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs text-muted-foreground">Dose de insulina não calculada. Confira a prescrição e as aplicações recentes antes de qualquer decisão.</p>
+          {recentMealProfile && (
+            <p className="mt-3 text-xs text-muted-foreground">Parâmetros cadastrados para {MEAL_LABEL[recentMeal.meal_type]}: 1 U para {fmtNum(recentMealProfile.carbs_g_per_unit)} g de carboidratos; sensibilidade de {fmtNum(recentMealProfile.sensitivity_mgdl_per_unit)} mg/dL por U. Referência da prescrição, não recomendação de dose.</p>
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">Dose de insulina não calculada. Confira a prescrição e as aplicações recentes antes de qualquer decisão.</p>
           {!readOnly && <Button asChild variant="outline" className="mt-3 w-full"><Link to="/monitor/insulina/nova">Registrar aplicação de insulina</Link></Button>}
         </Card>
       )}
@@ -212,6 +218,12 @@ function FoodPage() {
                 {(Object.keys(MEAL_LABEL) as MealType[]).map((k) => <option key={k} value={k}>{MEAL_LABEL[k]}</option>)}
               </select>
             </Field>
+            {currentMealProfile && (
+              <div className="rounded-lg bg-muted p-3 text-sm">
+                <p className="font-semibold">Fatores cadastrados para {MEAL_LABEL[mealType]}</p>
+                <p className="mt-1 text-muted-foreground">1 U para {fmtNum(currentMealProfile.carbs_g_per_unit)} g de carboidratos; sensibilidade {fmtNum(currentMealProfile.sensitivity_mgdl_per_unit)} mg/dL por U. Apenas consulta da prescrição, sem cálculo de dose.</p>
+              </div>
+            )}
             <Field id="et" label="Horário"><Input id="et" type="datetime-local" className={inputCls} value={eatenAt} onChange={(e) => setEatenAt(e.target.value)} /></Field>
             <Field id="nt" label="Observações" optional><Textarea id="nt" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} /></Field>
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={fav} onCheckedChange={(v) => setFav(v === true)} /> Salvar como refeição favorita</label>
