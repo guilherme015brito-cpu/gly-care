@@ -202,7 +202,15 @@ export const cloudStore: DataStore = {
         favorite_name: m.favorite_name,
       }),
     );
-    check(await supabase.from("meal_items").insert(m.items.map((it) => ({ ...it, meal_id: id, patient_id: pid }))));
+    // TACO IDs (e.g. taco-003) live in the local JSON, not in the UUID food_catalog table.
+    // Preserve the item name, source, portion and nutrients in the meal snapshot.
+    const items = m.items.map((it) => ({
+      ...it,
+      food_id: it.food_source === "TACO" ? null : it.food_id,
+      meal_id: id,
+      patient_id: pid,
+    }));
+    check(await supabase.from("meal_items").insert(items));
   },
 
   async getSettings(pid) {
