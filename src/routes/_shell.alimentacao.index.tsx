@@ -60,10 +60,9 @@ function FoodPage() {
   const suggestions = useMemo(() => {
     const all = foods.data ?? [];
     const n = normalizeFoodSearch(q);
-    const list = n
-      ? all.filter((f) => normalizeFoodSearch(f.name).includes(n) || normalizeFoodSearch(f.preparation ?? "").includes(n))
-      : all.filter((f) => f.is_favorite).concat(all.filter((f) => !f.is_favorite));
-    return list.slice(0, 12);
+    if (!n) return [];
+    const list = all.filter((f) => normalizeFoodSearch(f.name).includes(n) || normalizeFoodSearch(f.preparation ?? "").includes(n));
+    return list.slice(0, 8);
   }, [foods.data, q]);
 
   const computed = lines.map((l) => {
@@ -105,7 +104,9 @@ function FoodPage() {
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input type="search" placeholder="Ex.: arroz, feijão…" aria-label="Buscar alimento" className={`${inputCls} pl-10`} value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        {foods.isLoading ? <LoadingState /> : foods.error ? <ErrorState error={foods.error} /> : !suggestions.length ? (
+        {!normalizeFoodSearch(q) ? (
+          <p className="mt-3 text-sm text-muted-foreground">Digite o nome de um alimento para pesquisar na TACO.</p>
+        ) : foods.isLoading ? <LoadingState /> : foods.error ? <ErrorState error={foods.error} /> : !suggestions.length ? (
           <EmptyState title="Nenhum alimento encontrado">{!readOnly && mode === "demo" && <Link to="/alimentacao/novo" className="font-semibold text-primary">Cadastrar manualmente</Link>}</EmptyState>
         ) : (
           <ul className="mt-2 divide-y" aria-label="Sugestões">
