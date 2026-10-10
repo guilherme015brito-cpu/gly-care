@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Moon, Sun, UserRound, Syringe, Users, PlugZap, ShieldAlert, LogOut, FlaskConical } from "lucide-react";
+import { Moon, Sun, UserRound, Syringe, Users, PlugZap, ShieldAlert, LogOut, FlaskConical, TestTube } from "lucide-react";
 import { PageHeader, Card, NavRow } from "@/components/glycare/ui-bits";
 import { Segmented } from "@/components/glycare/form";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ function ConfigPage() {
         <NavRow to="/config/membros" icon={<Users className="h-5 w-5" />} title="Pessoas autorizadas" desc="Cuidadores, paciente, profissionais" />
         <NavRow to="/config/conexao" icon={<PlugZap className="h-5 w-5" />} title="Conexão e integrações" desc="Fontes de glicemia, estado offline" />
         <NavRow to="/config/seguranca" icon={<ShieldAlert className="h-5 w-5" />} title="Segurança e plano de cuidados" desc="Como agir conforme a equipe" />
+        <NavRow to="/monitor/cetonas" icon={<TestTube className="h-5 w-5" />} title="Registrar cetonas" desc="Registro opcional de exame de cetonas" />
       </Card>
       <Card>
         <p className="mb-2 text-sm font-semibold">Aparência</p>
