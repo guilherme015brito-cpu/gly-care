@@ -1,19 +1,37 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Moon, Sun, UserRound, Syringe, Users, PlugZap, ShieldAlert, LogOut, FlaskConical } from "lucide-react";
+import {
+  Moon,
+  Sun,
+  UserRound,
+  Syringe,
+  Users,
+  PlugZap,
+  ShieldAlert,
+  LogOut,
+  FlaskConical,
+  Check,
+  TestTube,
+} from "lucide-react";
 import { PageHeader, Card, NavRow } from "@/components/glycare/ui-bits";
 import { Segmented } from "@/components/glycare/form";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/app-context";
-import { useTheme } from "@/hooks/use-theme";
+import { useTheme, ACCENTS } from "@/hooks/use-theme";
 import { ROLE_LABEL } from "@/lib/domain/labels";
 
 export const Route = createFileRoute("/_shell/config/")({
   head: () => ({
     meta: [
       { title: "Configurações — GlyCare" },
-      { name: "description", content: "Parâmetros da paciente, insulinas, pessoas autorizadas e integrações." },
+      {
+        name: "description",
+        content: "Parâmetros da paciente, insulinas, pessoas autorizadas e integrações.",
+      },
       { property: "og:title", content: "Configurações — GlyCare" },
-      { property: "og:description", content: "Parâmetros da paciente, insulinas, pessoas autorizadas e integrações." },
+      {
+        property: "og:description",
+        content: "Parâmetros da paciente, insulinas, pessoas autorizadas e integrações.",
+      },
     ],
   }),
   component: ConfigPage,
@@ -21,38 +39,123 @@ export const Route = createFileRoute("/_shell/config/")({
 
 function ConfigPage() {
   const { patient, patients, setPatientId, mode, session, signOut, exitDemo } = useApp();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, accent, setAccent } = useTheme();
   return (
     <div className="space-y-4">
       <PageHeader title="Configurações" back={false} />
       <Card>
-        <p className="text-sm text-muted-foreground">{mode === "demo" ? "Modo demonstração" : session?.user.email}</p>
+        <p className="text-sm text-muted-foreground">
+          {mode === "demo" ? "Modo demonstração" : session?.user.email}
+        </p>
         <p className="font-bold">{patient?.nickname}</p>
-        <p className="text-sm text-muted-foreground">Seu papel: {patient && ROLE_LABEL[patient.role]}</p>
+        <p className="text-sm text-muted-foreground">
+          Seu papel: {patient && ROLE_LABEL[patient.role]}
+        </p>
         {patients.length > 1 && (
-          <select aria-label="Trocar paciente" className="mt-3 h-11 w-full rounded-md border bg-card px-3" value={patient?.id} onChange={(e) => setPatientId(e.target.value)}>
-            {patients.map((p) => <option key={p.id} value={p.id}>{p.nickname}</option>)}
+          <select
+            aria-label="Trocar paciente"
+            className="mt-3 h-11 w-full rounded-md border bg-card px-3"
+            value={patient?.id}
+            onChange={(e) => setPatientId(e.target.value)}
+          >
+            {patients.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nickname}
+              </option>
+            ))}
           </select>
         )}
       </Card>
-      <Card className="p-2">
-        <NavRow to="/config/paciente" icon={<UserRound className="h-5 w-5" />} title="Paciente e parâmetros" desc="Faixas, prescrição, contato de emergência" />
-        <NavRow to="/config/insulinas" icon={<Syringe className="h-5 w-5" />} title="Insulinas" desc="Catálogo e insulinas em uso" />
-        <NavRow to="/config/membros" icon={<Users className="h-5 w-5" />} title="Pessoas autorizadas" desc="Cuidadores, paciente, profissionais" />
-        <NavRow to="/config/conexao" icon={<PlugZap className="h-5 w-5" />} title="Conexão e integrações" desc="Fontes de glicemia, estado offline" />
-        <NavRow to="/config/seguranca" icon={<ShieldAlert className="h-5 w-5" />} title="Segurança e plano de cuidados" desc="Como agir conforme a equipe" />
-      </Card>
-      <Card>
-        <p className="mb-2 text-sm font-semibold">Aparência</p>
-        <Segmented label="Tema" value={theme} onChange={setTheme} options={[{ value: "light", label: "☀ Claro" }, { value: "dark", label: "☾ Escuro" }]} />
-        <span className="sr-only">{theme === "dark" ? <Moon /> : <Sun />}</span>
-      </Card>
+      <div className="config-workspace">
+        <section>
+          <NavRow
+            to="/config/paciente"
+            icon={<UserRound className="h-5 w-5" />}
+            title="Paciente e parâmetros"
+            desc="Faixas, prescrição, contato de emergência"
+          />
+          <NavRow
+            to="/config/insulinas"
+            icon={<Syringe className="h-5 w-5" />}
+            title="Insulinas"
+            desc="Catálogo e insulinas em uso"
+          />
+          <NavRow
+            to="/config/membros"
+            icon={<Users className="h-5 w-5" />}
+            title="Pessoas autorizadas"
+            desc="Cuidadores, paciente, profissionais"
+          />
+          <NavRow
+            to="/config/conexao"
+            icon={<PlugZap className="h-5 w-5" />}
+            title="Conexão e integrações"
+            desc="Fontes de glicemia, estado offline"
+          />
+          <NavRow
+            to="/config/seguranca"
+            icon={<ShieldAlert className="h-5 w-5" />}
+            title="Segurança e plano de cuidados"
+            desc="Como agir conforme a equipe"
+          />
+          <NavRow
+            to="/monitor/cetonas"
+            icon={<TestTube className="h-5 w-5" />}
+            title="Cetonas"
+            desc="Registro e histórico de medições"
+          />
+        </section>
+        <Card>
+          <p className="mb-2 text-sm font-semibold">Aparência</p>
+          <Segmented
+            label="Tema"
+            value={theme}
+            onChange={setTheme}
+            options={[
+              { value: "light", label: "☀ Claro" },
+              { value: "dark", label: "☾ Escuro" },
+            ]}
+          />
+          <p className="mt-5 text-sm font-semibold">Cor de destaque</p>
+          <div className="theme-swatches">
+            {ACCENTS.map((color) => (
+              <button
+                key={color.value}
+                title={color.name}
+                aria-label={color.name}
+                aria-pressed={accent.toLowerCase() === color.value.toLowerCase()}
+                style={{ backgroundColor: color.value }}
+                onClick={() => setAccent(color.value)}
+              >
+                {accent.toLowerCase() === color.value.toLowerCase() && <Check aria-hidden />}
+              </button>
+            ))}
+          </div>
+          <label className="mt-5 flex items-center justify-between gap-4 text-sm">
+            Cor personalizada
+            <input
+              aria-label="Cor personalizada"
+              type="color"
+              value={accent}
+              onChange={(e) => setAccent(e.target.value)}
+              className="h-9 w-12 cursor-pointer rounded border bg-card p-1"
+            />
+          </label>
+          <span className="sr-only">{theme === "dark" ? <Moon /> : <Sun />}</span>
+        </Card>
+      </div>
       {mode === "demo" ? (
-        <Button variant="outline" size="lg" className="w-full" onClick={exitDemo}><FlaskConical aria-hidden /> Sair da demonstração</Button>
+        <Button variant="outline" size="lg" className="w-full" onClick={exitDemo}>
+          <FlaskConical aria-hidden /> Sair da demonstração
+        </Button>
       ) : (
-        <Button variant="outline" size="lg" className="w-full" onClick={signOut}><LogOut aria-hidden /> Sair da conta</Button>
+        <Button variant="outline" size="lg" className="w-full" onClick={signOut}>
+          <LogOut aria-hidden /> Sair da conta
+        </Button>
       )}
-      <p className="px-2 text-center text-xs text-muted-foreground">GlyCare MVP · não é um dispositivo médico validado.</p>
+      <p className="px-2 text-center text-xs text-muted-foreground">
+        GlyCare MVP · não é um dispositivo médico validado.
+      </p>
     </div>
   );
 }

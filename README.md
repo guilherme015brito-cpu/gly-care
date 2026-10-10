@@ -326,7 +326,7 @@ Mostrar a glicemia registrada próxima da refeição somente se houver uma leitu
 
 
 
-Não sugerir doses de insulina com base nos carboidratos nesta versão.
+No modo demonstração, calcular automaticamente o componente da refeição a partir dos carboidratos TACO e da relação por horário, somando a correção de glicemia configurada.
 
 
 
@@ -384,7 +384,7 @@ Requisitos:
 
 - Não permitir doses negativas, valores não numéricos ou formatos inválidos.
 
-- Não criar um botão de "Aplicar dose recomendada".
+- Os resultados demonstrativos não acionam aplicações de insulina. O registro de aplicações permanece um fluxo separado.
 
 
 
@@ -480,7 +480,7 @@ Permitir cadastrar:
 
 
 
-Esses parâmetros serão armazenados, mas não utilizados automaticamente para gerar recomendações de doses na versão inicial.
+No modo demonstração, esses parâmetros alimentam automaticamente as calculadoras de refeição e correção de glicemia.
 
 
 
@@ -762,7 +762,7 @@ Priorizar:
 
 
 
-Não construir um calculador de doses de insulina nesta fase.
+Implementar as calculadoras automáticas de alimentação e monitoramento para o paciente fictício da demonstração, preservando a TACO, os nutrientes ausentes e as validações numéricas.
 
 
 

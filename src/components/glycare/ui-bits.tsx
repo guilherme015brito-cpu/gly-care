@@ -1,12 +1,36 @@
 import type { ReactNode } from "react";
 import { Link, useRouter } from "@tanstack/react-router";
-import { AlertCircle, ArrowDown, ArrowDownRight, ArrowRight, ArrowUp, ArrowUpRight, ChevronLeft, FlaskConical, Hand, HelpCircle, Inbox, Loader2, PlugZap } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUp,
+  ArrowUpRight,
+  ChevronLeft,
+  FlaskConical,
+  Hand,
+  HelpCircle,
+  Inbox,
+  Loader2,
+  PlugZap,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GlucoseSource, GlucoseTrend } from "@/lib/domain/types";
 import { SOURCE_LABEL, TREND_LABEL } from "@/lib/domain/labels";
 import { BAND_LABEL, type GlucoseBand } from "@/lib/glucose/status";
 
-export function PageHeader({ title, subtitle, back = true, action }: { title: string; subtitle?: string; back?: boolean; action?: ReactNode }) {
+export function PageHeader({
+  title,
+  subtitle,
+  back = true,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  back?: boolean;
+  action?: ReactNode;
+}) {
   const router = useRouter();
   return (
     <header className="flex items-center gap-2 pb-4 pt-2">
@@ -21,15 +45,19 @@ export function PageHeader({ title, subtitle, back = true, action }: { title: st
         </button>
       )}
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-xl font-bold">{title}</h1>
-        {subtitle && <p className="truncate text-sm text-muted-foreground">{subtitle}</p>}
+        <h1 className="text-2xl font-bold [overflow-wrap:anywhere]">{title}</h1>
+        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       {action}
     </header>
   );
 }
 
-export function Card({ children, className, ...rest }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLElement>) {
+export function Card({
+  children,
+  className,
+  ...rest
+}: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLElement>) {
   return (
     <section className={cn("card-surface p-4", className)} {...rest}>
       {children}
@@ -37,10 +65,22 @@ export function Card({ children, className, ...rest }: { children: ReactNode; cl
   );
 }
 
-export function CardTitle({ icon, children, action }: { icon?: ReactNode; children: ReactNode; action?: ReactNode }) {
+export function CardTitle({
+  icon,
+  children,
+  action,
+}: {
+  icon?: ReactNode;
+  children: ReactNode;
+  action?: ReactNode;
+}) {
   return (
     <div className="mb-3 flex items-center gap-2">
-      {icon && <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">{icon}</span>}
+      {icon && (
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
+          {icon}
+        </span>
+      )}
       <h2 className="flex-1 text-base font-semibold">{children}</h2>
       {action}
     </div>
@@ -52,12 +92,22 @@ const SOURCE_STYLE: Record<GlucoseSource, string> = {
   manual: "bg-info-soft text-info",
   external: "bg-success-soft text-success",
 };
-const SOURCE_ICON: Record<GlucoseSource, typeof Hand> = { simulation: FlaskConical, manual: Hand, external: PlugZap };
+const SOURCE_ICON: Record<GlucoseSource, typeof Hand> = {
+  simulation: FlaskConical,
+  manual: Hand,
+  external: PlugZap,
+};
 
 export function SourceBadge({ source, className }: { source: GlucoseSource; className?: string }) {
   const Icon = SOURCE_ICON[source];
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold", SOURCE_STYLE[source], className)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
+        SOURCE_STYLE[source],
+        className,
+      )}
+    >
       <Icon className="h-3 w-3" aria-hidden />
       {SOURCE_LABEL[source]}
     </span>
@@ -77,7 +127,9 @@ export function TrendArrow({ trend, className }: { trend: GlucoseTrend; classNam
   return (
     <span className={cn("inline-flex items-center gap-1", className)} title={TREND_LABEL[trend]}>
       <Icon className="h-7 w-7" aria-hidden strokeWidth={2.5} />
-      {trend === "rising_fast" || trend === "falling_fast" ? <Icon className="-ml-4 h-7 w-7" aria-hidden strokeWidth={2.5} /> : null}
+      {trend === "rising_fast" || trend === "falling_fast" ? (
+        <Icon className="-ml-4 h-7 w-7" aria-hidden strokeWidth={2.5} />
+      ) : null}
       <span className="sr-only">{TREND_LABEL[trend]}</span>
     </span>
   );
@@ -93,7 +145,12 @@ export const BAND_STYLE: Record<GlucoseBand, string> = {
 export function BandBadge({ band }: { band: GlucoseBand }) {
   const sym = band === "in_range" ? "✓" : band.includes("low") ? "▼" : "▲";
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold", BAND_STYLE[band])}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold",
+        BAND_STYLE[band],
+      )}
+    >
       <span aria-hidden>{sym}</span>
       {BAND_LABEL[band]}
     </span>
@@ -102,14 +159,20 @@ export function BandBadge({ band }: { band: GlucoseBand }) {
 
 export function LoadingState({ label = "Carregando…" }: { label?: string }) {
   return (
-    <div role="status" className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+    <div
+      role="status"
+      className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"
+    >
       <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {label}
     </div>
   );
 }
 export function ErrorState({ error }: { error: unknown }) {
   return (
-    <div role="alert" className="flex items-start gap-2 rounded-xl bg-danger-soft p-3 text-sm text-destructive">
+    <div
+      role="alert"
+      className="flex items-start gap-2 rounded-xl bg-danger-soft p-3 text-sm text-destructive"
+    >
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
       <span>{error instanceof Error ? error.message : "Não foi possível carregar os dados."}</span>
     </div>
@@ -125,8 +188,21 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
   );
 }
 
-export function Notice({ tone = "info", children, icon }: { tone?: "info" | "warning" | "sim" | "danger"; children: ReactNode; icon?: ReactNode }) {
-  const s = { info: "bg-info-soft text-info", warning: "bg-warning-soft text-warning-foreground", sim: "bg-sim-soft text-sim", danger: "bg-danger-soft text-destructive" }[tone];
+export function Notice({
+  tone = "info",
+  children,
+  icon,
+}: {
+  tone?: "info" | "warning" | "sim" | "danger";
+  children: ReactNode;
+  icon?: ReactNode;
+}) {
+  const s = {
+    info: "bg-info-soft text-info",
+    warning: "bg-warning-soft text-warning-foreground",
+    sim: "bg-sim-soft text-sim",
+    danger: "bg-danger-soft text-destructive",
+  }[tone];
   return (
     <div className={cn("flex items-start gap-2 rounded-xl p-3 text-sm", s)}>
       {icon ?? <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />}
@@ -135,10 +211,22 @@ export function Notice({ tone = "info", children, icon }: { tone?: "info" | "war
   );
 }
 
-export function NavRow({ to, icon, title, desc }: { to: string; icon: ReactNode; title: string; desc?: string }) {
+export function NavRow({
+  to,
+  icon,
+  title,
+  desc,
+}: {
+  to: string;
+  icon: ReactNode;
+  title: string;
+  desc?: string;
+}) {
   return (
     <Link to={to} className="flex min-h-14 items-center gap-3 rounded-xl px-2 py-3 hover:bg-muted">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary">{icon}</span>
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
+        {icon}
+      </span>
       <span className="min-w-0 flex-1">
         <span className="block font-semibold">{title}</span>
         {desc && <span className="block truncate text-sm text-muted-foreground">{desc}</span>}
