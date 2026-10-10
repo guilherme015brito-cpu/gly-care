@@ -11,7 +11,7 @@ import { useFoods, useMeals, useStoreMutation } from "@/hooks/use-data";
 import { usePatientStore } from "@/lib/app-context";
 import { computeItem, sumItems } from "@/lib/nutrition";
 import { gramsSchema } from "@/lib/validation";
-import { FOOD_SOURCE_LABEL, FOOD_STATE_LABEL, MEAL_LABEL, fmtNum, nowLocalInput } from "@/lib/domain/labels";
+import { FOOD_SOURCE_LABEL, FOOD_STATE_LABEL, MEAL_LABEL, fmtDateTime, fmtNum, nowLocalInput } from "@/lib/domain/labels";
 import type { Food, MealType } from "@/lib/domain/types";
 import type { NewMeal } from "@/lib/data/store";
 import { cn } from "@/lib/utils";
@@ -72,6 +72,7 @@ function FoodPage() {
   const totals = sumItems(computed.filter((c) => c.item).map((c) => c.item!));
   const allValid = lines.length > 0 && computed.every((c) => c.valid);
   const favMeals = (meals.data ?? []).filter((m) => m.is_favorite);
+  const recentMeal = meals.data?.[0];
 
   function addFood(f: Food) {
     setLines((ls) => [...ls, { key: crypto.randomUUID(), food: f, grams: "", includesInedible: false }]);
@@ -89,6 +90,27 @@ function FoodPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Alimentação" back={false} action={<Button asChild variant="soft" size="sm"><Link to="/alimentacao/historico"><History aria-hidden /> Histórico</Link></Button>} />
+      {recentMeal && (
+        <Card>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground">Última refeição registrada</p>
+              <p className="mt-1 font-bold">{MEAL_LABEL[recentMeal.meal_type]} · {fmtDateTime(recentMeal.eaten_at)}</p>
+            </div>
+            <p className="shrink-0 text-xl font-extrabold text-primary">{fmtNum(recentMeal.total_carbs_g)} g <span className="text-xs">carb</span></p>
+          </div>
+          <ul className="mt-3 space-y-1 border-t pt-2 text-sm">
+            {recentMeal.items.map((item) => (
+              <li key={item.id} className="flex justify-between gap-2">
+                <span className="min-w-0 truncate">{item.food_name} · {fmtNum(item.grams)} g</span>
+                <span className="shrink-0 text-muted-foreground">{fmtNum(item.carbs_g)} g</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">Dose de insulina não calculada. Confira a prescrição e as aplicações recentes antes de qualquer decisão.</p>
+          {!readOnly && <Button asChild variant="outline" className="mt-3 w-full"><Link to="/monitor/insulina/nova">Registrar aplicação de insulina</Link></Button>}
+        </Card>
+      )}
 
       <Notice tone="info" icon={<Info className="mt-0.5 h-4 w-4 shrink-0" />}>
         TACO 4ª edição (NEPA/UNICAMP) disponível: 597 alimentos, com valores por 100 g da parte comestível. Preserve o preparo indicado no nome ao escolher o alimento.
