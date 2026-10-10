@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Activity, Droplet, History, RefreshCw, Syringe, Utensils, CloudOff, CheckCircle2 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
-import { RANGE_HOURS, type RangeKey, useAdministrations, useCatalog, useGlucose, useKetones, useMeals, useSettings } from "@/hooks/use-data";
+import { RANGE_HOURS, type RangeKey, useAdministrations, useCatalog, useGlucose, useKetones, useMeals, usePatientInsulins, useSettings } from "@/hooks/use-data";
 import { useOnline } from "@/hooks/use-online";
 import { classifyGlucose, isStale, STALE_AFTER_MIN } from "@/lib/glucose/status";
 import { PURPOSE_LABEL, TREND_LABEL, fmtDateTime, relativeAge } from "@/lib/domain/labels";
@@ -30,8 +30,9 @@ function Dashboard() {
   const glucose = useGlucose(hours);
   const latestQ = useGlucose(24);
   const settings = useSettings();
-  const admins = useAdministrations(10);
+  const admins = useAdministrations(50);
   const catalog = useCatalog();
+  const patientInsulins = usePatientInsulins();
   const meals = useMeals(30);
   const ketones = useKetones(30);
   const online = useOnline();
@@ -41,6 +42,14 @@ function Dashboard() {
   const band = latest && settings.data ? classifyGlucose(latest.value_mgdl, settings.data) : null;
   const lastAdmin = admins.data?.find((a) => !a.is_superseded && a.status === "performed");
   const insulinName = (id: string) => catalog.data?.find((c) => c.id === id)?.brand_name ?? "Insulina";
+  const rapidIds = new Set(patientInsulins.data?.filter((i) => i.role === "rapid").map((i) => i.insulin_id) ?? []);
+  const basalInUse = patientInsulins.data?.filter((i) => i.active && i.role === "basal") ?? [];
+  const timeNow = Date.now();
+  const recentRapid = (admins.data ?? [])
+    .filter((a) => a.status === "performed" && a.confirmed_by_user && !a.is_superseded &&
+      rapidIds.has(a.insulin_id) && Date.parse(a.administered_at) <= timeNow &&
+      Date.parse(a.administered_at) >= timeNow - 7 * 3600000)
+    .slice(0, 5);
 
 
   return (
@@ -171,9 +180,30 @@ function Dashboard() {
             </p>
           </div>
         )}
-        <p className="mt-3 text-xs text-muted-foreground">
-          Insulina ativa (IOB): ainda não calculada. Aplicações recentes podem continuar fazendo efeito.
-        </p>
+        <div className="mt-3 space-y-2 rounded-lg border border-dashed p-3">
+          <p className="text-sm font-semibold">Aplicações rápidas nas últimas 7 horas</p>
+          {admins.isLoading || patientInsulins.isLoading ? (
+            <LoadingState />
+          ) : recentRapid.length ? (
+            <ul className="space-y-1 text-sm">
+              {recentRapid.map((a) => (
+                <li key={a.id} className="flex flex-wrap justify-between gap-1">
+                  <span>{insulinName(a.insulin_id)} · {a.dose_units.toLocaleString("pt-BR")} UI</span>
+                  <span className="text-muted-foreground">{relativeAge(a.administered_at)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhuma aplicação rápida confirmada neste período do histórico consultado.</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Fiasp costuma agir por várias horas; os registros acima não determinam o IOB, nem se é seguro repetir uma dose.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Insulina basal{basalInUse.length ? ` em uso: ${basalInUse.map((i) => insulinName(i.insulin_id)).join(", ")}` : ""}.
+            Ação prolongada, acompanhada separadamente. Não é somada à insulina rápida.
+          </p>
+        </div>
       </Card>
 
       <p className="px-2 pb-2 text-center text-xs text-muted-foreground">
