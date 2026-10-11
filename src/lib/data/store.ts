@@ -16,7 +16,12 @@ import type {
   PatientMember,
 } from "../domain/types";
 import type { IncomingReading } from "../glucose/providers";
-import type { AdministrationInput, FoodInput, InsulinCatalogInput, KetoneInput } from "../validation";
+import type {
+  AdministrationInput,
+  FoodInput,
+  InsulinCatalogInput,
+  KetoneInput,
+} from "../validation";
 
 export interface NewMeal {
   meal_type: MealType;
@@ -25,7 +30,13 @@ export interface NewMeal {
   is_favorite: boolean;
   favorite_name: string | null;
   items: Omit<MealItem, "id">[];
-  totals: { carbs_g: number; protein_g: number | null; fat_g: number | null; kcal: number | null; hasMissing: boolean };
+  totals: {
+    carbs_g: number;
+    protein_g: number | null;
+    fat_g: number | null;
+    kcal: number | null;
+    hasMissing: boolean;
+  };
 }
 
 /** Single data-access contract implemented by the in-memory demo and by Lovable Cloud. */
@@ -44,12 +55,15 @@ export interface DataStore {
   addCatalogInsulin(input: InsulinCatalogInput): Promise<void>;
 
   listPatientInsulins(pid: string): Promise<PatientInsulin[]>;
-  addPatientInsulin(pid: string, p: Omit<PatientInsulin, "id" | "patient_id" | "active" | "ended_on">): Promise<void>;
+  addPatientInsulin(
+    pid: string,
+    p: Omit<PatientInsulin, "id" | "patient_id" | "active" | "ended_on">,
+  ): Promise<void>;
   endPatientInsulin(id: string, ended_on: string): Promise<void>;
 
   listAdministrations(pid: string, limit?: number): Promise<InsulinAdministration[]>;
   addAdministration(pid: string, input: AdministrationInput, supersedesId?: string): Promise<void>;
-  markAdministrationPerformed(id: string): Promise<void>;
+  markAdministrationPerformed(id: string, administeredAt?: string): Promise<void>;
 
   listKetones(pid: string, limit?: number): Promise<KetoneReading[]>;
   addKetone(pid: string, input: KetoneInput): Promise<void>;
@@ -60,6 +74,12 @@ export interface DataStore {
 
   listMeals(pid: string, limit?: number): Promise<MealEntry[]>;
   addMeal(pid: string, meal: NewMeal): Promise<void>;
+  /** Demo-only atomic meal + administration; Cloud must reject this simulation workflow. */
+  addMealWithAdministration(
+    pid: string,
+    meal: NewMeal,
+    administration: AdministrationInput,
+  ): Promise<void>;
 
   getSettings(pid: string): Promise<ClinicalSettings>;
   saveSettings(pid: string, s: Omit<ClinicalSettings, "patient_id">): Promise<void>;

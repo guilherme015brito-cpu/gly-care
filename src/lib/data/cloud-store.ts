@@ -28,10 +28,12 @@ function check<T>(res: { data: T; error: { message: string; code?: string } | nu
 }
 
 export function friendlyError(e: { message: string; code?: string }): string {
-  if (e.code === "42501" || /row-level security/i.test(e.message)) return "Você não tem permissão para esta ação.";
+  if (e.code === "42501" || /row-level security/i.test(e.message))
+    return "Você não tem permissão para esta ação.";
   if (e.code === "23514") return "Algum valor está fora do intervalo permitido.";
   if (e.code === "23505") return "Este registro já existe.";
-  if (/Failed to fetch|NetworkError/i.test(e.message)) return "Sem conexão com o servidor. Nada foi salvo.";
+  if (/Failed to fetch|NetworkError/i.test(e.message))
+    return "Sem conexão com o servidor. Nada foi salvo.";
   return "Não foi possível concluir a operação. Tente novamente.";
 }
 
@@ -48,12 +50,26 @@ export const cloudStore: DataStore = {
 
   async listPatients() {
     const uid = await myId();
-    const rows = check(await supabase.from("patient_members").select("role, patients(id, nickname, birth_date)").eq("user_id", uid));
+    const rows = check(
+      await supabase
+        .from("patient_members")
+        .select("role, patients(id, nickname, birth_date)")
+        .eq("user_id", uid),
+    );
     return (rows ?? [])
       .filter((r) => r.patients)
       .map((r) => {
-        const p = r.patients as unknown as { id: string; nickname: string; birth_date: string | null };
-        return { id: p.id, nickname: p.nickname, birth_date: p.birth_date, role: r.role } satisfies Patient;
+        const p = r.patients as unknown as {
+          id: string;
+          nickname: string;
+          birth_date: string | null;
+        };
+        return {
+          id: p.id,
+          nickname: p.nickname,
+          birth_date: p.birth_date,
+          role: r.role,
+        } satisfies Patient;
       });
   },
   async createPatient(nickname) {
@@ -69,14 +85,31 @@ export const cloudStore: DataStore = {
 
   async listGlucose(pid, since) {
     const rows = check(
-      await supabase.from("glucose_readings").select("*").eq("patient_id", pid).gte("measured_at", since.toISOString()).order("measured_at", { ascending: true }).limit(2000),
+      await supabase
+        .from("glucose_readings")
+        .select("*")
+        .eq("patient_id", pid)
+        .gte("measured_at", since.toISOString())
+        .order("measured_at", { ascending: true })
+        .limit(2000),
     );
-    return (rows ?? []).map((r) => ({ ...r, value: Number(r.value), value_mgdl: Number(r.value_mgdl) }) as GlucoseReading);
+    return (rows ?? []).map(
+      (r) => ({ ...r, value: Number(r.value), value_mgdl: Number(r.value_mgdl) }) as GlucoseReading,
+    );
   },
   async ingestGlucose(pid, readings) {
     if (!readings.length) return 0;
-    const minT = readings.reduce((m, r) => (r.measured_at < m ? r.measured_at : m), readings[0]!.measured_at);
-    const existing = check(await supabase.from("glucose_readings").select("provider_id, external_id, measured_at").eq("patient_id", pid).gte("measured_at", minT));
+    const minT = readings.reduce(
+      (m, r) => (r.measured_at < m ? r.measured_at : m),
+      readings[0]!.measured_at,
+    );
+    const existing = check(
+      await supabase
+        .from("glucose_readings")
+        .select("provider_id, external_id, measured_at")
+        .eq("patient_id", pid)
+        .gte("measured_at", minT),
+    );
     const fresh = filterNewReadings(existing ?? [], readings);
     if (!fresh.length) return 0;
     const rows = fresh.map((r) => {
@@ -84,26 +117,58 @@ export const cloudStore: DataStore = {
       return { ...n, raw_payload: (r.raw_payload ?? null) as Json };
     });
     // unique indexes make this idempotent even under races
-    const res = await supabase.from("glucose_readings").upsert(rows, { onConflict: "patient_id,provider_id,measured_at", ignoreDuplicates: true });
+    const res = await supabase
+      .from("glucose_readings")
+      .upsert(rows, { onConflict: "patient_id,provider_id,measured_at", ignoreDuplicates: true });
     check(res);
     return fresh.length;
   },
 
   async listCatalog() {
-    return check(await supabase.from("insulin_catalog").select("*").order("brand_name")) as InsulinCatalogItem[];
+    return check(
+      await supabase.from("insulin_catalog").select("*").order("brand_name"),
+    ) as InsulinCatalogItem[];
   },
   async listActionProfiles() {
-    return check(await supabase.from("insulin_action_profiles").select("*")) as InsulinActionProfile[];
+    return check(
+      await supabase.from("insulin_action_profiles").select("*"),
+    ) as InsulinActionProfile[];
   },
   async addCatalogInsulin(i) {
     const uid = await myId();
     const id = crypto.randomUUID();
-    check(await supabase.from("insulin_catalog").insert({ id, created_by: uid, brand_name: i.brand_name, active_ingredient: i.active_ingredient, manufacturer: i.manufacturer, pharmacological_class: i.pharmacological_class, concentration: i.concentration, route: i.route, presentation: i.presentation }));
-    check(await supabase.from("insulin_action_profiles").insert({ insulin_id: id, created_by: uid, onset_text: i.onset_text, peak_text: i.peak_text, effective_duration_text: i.effective_duration_text, max_duration_text: i.max_duration_text, source_reference: i.source_reference, source_review_date: i.source_review_date, validation_status: i.validation_status }));
+    check(
+      await supabase.from("insulin_catalog").insert({
+        id,
+        created_by: uid,
+        brand_name: i.brand_name,
+        active_ingredient: i.active_ingredient,
+        manufacturer: i.manufacturer,
+        pharmacological_class: i.pharmacological_class,
+        concentration: i.concentration,
+        route: i.route,
+        presentation: i.presentation,
+      }),
+    );
+    check(
+      await supabase.from("insulin_action_profiles").insert({
+        insulin_id: id,
+        created_by: uid,
+        onset_text: i.onset_text,
+        peak_text: i.peak_text,
+        effective_duration_text: i.effective_duration_text,
+        max_duration_text: i.max_duration_text,
+        source_reference: i.source_reference,
+        source_review_date: i.source_review_date,
+        validation_status: i.validation_status,
+      }),
+    );
   },
 
   async listPatientInsulins(pid) {
-    return check(await supabase.from("patient_insulins").select("*").eq("patient_id", pid).order("created_at")) as PatientInsulin[];
+    return check(
+      await supabase.from("patient_insulins").select("*").eq("patient_id", pid).order("created_at"),
+    ) as PatientInsulin[];
   },
   async addPatientInsulin(pid, p) {
     check(await supabase.from("patient_insulins").insert({ ...p, patient_id: pid }));
@@ -113,11 +178,26 @@ export const cloudStore: DataStore = {
   },
 
   async listAdministrations(pid, limit = 50) {
-    const rows = check(await supabase.from("insulin_administrations").select("*").eq("patient_id", pid).order("administered_at", { ascending: false }).limit(limit));
-    return (rows ?? []).map((r) => ({ ...r, dose_units: Number(r.dose_units) }) as InsulinAdministration);
+    const rows = check(
+      await supabase
+        .from("insulin_administrations")
+        .select("*")
+        .eq("patient_id", pid)
+        .order("administered_at", { ascending: false })
+        .limit(limit),
+    );
+    return (rows ?? []).map(
+      (r) => ({ ...r, dose_units: Number(r.dose_units) }) as InsulinAdministration,
+    );
   },
   async addAdministration(pid, i, supersedesId) {
-    const { data: pis } = await supabase.from("patient_insulins").select("id").eq("patient_id", pid).eq("insulin_id", i.insulin_id).eq("active", true).limit(1);
+    const { data: pis } = await supabase
+      .from("patient_insulins")
+      .select("id")
+      .eq("patient_id", pid)
+      .eq("insulin_id", i.insulin_id)
+      .eq("active", true)
+      .limit(1);
     check(
       await supabase.from("insulin_administrations").insert({
         patient_id: pid,
@@ -135,22 +215,66 @@ export const cloudStore: DataStore = {
         supersedes_id: supersedesId ?? null,
       }),
     );
-    if (supersedesId) check(await supabase.from("insulin_administrations").update({ is_superseded: true }).eq("id", supersedesId));
+    if (supersedesId)
+      check(
+        await supabase
+          .from("insulin_administrations")
+          .update({ is_superseded: true })
+          .eq("id", supersedesId),
+      );
   },
-  async markAdministrationPerformed(id) {
-    check(await supabase.from("insulin_administrations").update({ status: "performed", confirmed_by_user: true }).eq("id", id));
+  async markAdministrationPerformed(id, administeredAt = new Date().toISOString()) {
+    const at = new Date(administeredAt).getTime();
+    if (!Number.isFinite(at) || at > Date.now() + 5 * 60000)
+      throw new Error("Informe um horário efetivo válido, não futuro.");
+    check(
+      await supabase
+        .from("insulin_administrations")
+        .update({
+          status: "performed",
+          confirmed_by_user: true,
+          administered_at: new Date(at).toISOString(),
+        })
+        .eq("id", id)
+        .eq("status", "planned")
+        .eq("is_superseded", false),
+    );
   },
 
   async listKetones(pid, limit = 50) {
-    const rows = check(await supabase.from("ketone_readings").select("*").eq("patient_id", pid).order("measured_at", { ascending: false }).limit(limit));
+    const rows = check(
+      await supabase
+        .from("ketone_readings")
+        .select("*")
+        .eq("patient_id", pid)
+        .order("measured_at", { ascending: false })
+        .limit(limit),
+    );
     return (rows ?? []).map((r) => ({ ...r, value: num(r.value) }) as KetoneReading);
   },
   async addKetone(pid, i) {
-    check(await supabase.from("ketone_readings").insert({ patient_id: pid, method: i.method, unit: i.unit, value: i.value, qualitative: i.qualitative, measured_at: new Date(i.measured_at).toISOString(), notes: i.notes }));
+    check(
+      await supabase.from("ketone_readings").insert({
+        patient_id: pid,
+        method: i.method,
+        unit: i.unit,
+        value: i.value,
+        qualitative: i.qualitative,
+        measured_at: new Date(i.measured_at).toISOString(),
+        notes: i.notes,
+      }),
+    );
   },
 
   async listFoods(pid) {
-    const rows = check(await supabase.from("food_catalog").select("*").or(`patient_id.is.null,patient_id.eq.${pid}`).order("name").limit(1000));
+    const rows = check(
+      await supabase
+        .from("food_catalog")
+        .select("*")
+        .or(`patient_id.is.null,patient_id.eq.${pid}`)
+        .order("name")
+        .limit(1000),
+    );
     return (rows ?? []).map(
       (r) =>
         ({
@@ -171,7 +295,14 @@ export const cloudStore: DataStore = {
   },
 
   async listMeals(pid, limit = 50) {
-    const rows = check(await supabase.from("meal_entries").select("*, meal_items(*)").eq("patient_id", pid).order("eaten_at", { ascending: false }).limit(limit));
+    const rows = check(
+      await supabase
+        .from("meal_entries")
+        .select("*, meal_items(*)")
+        .eq("patient_id", pid)
+        .order("eaten_at", { ascending: false })
+        .limit(limit),
+    );
     return (rows ?? []).map((r) => {
       const { meal_items, ...m } = r as typeof r & { meal_items: MealItem[] };
       return {
@@ -180,9 +311,19 @@ export const cloudStore: DataStore = {
         total_protein_g: num(m.total_protein_g),
         total_fat_g: num(m.total_fat_g),
         total_kcal: num(m.total_kcal),
-        items: (meal_items ?? []).map((it) => ({ ...it, grams: Number(it.grams), carbs_g: num(it.carbs_g), protein_g: num(it.protein_g), fat_g: num(it.fat_g), kcal: num(it.kcal) })),
+        items: (meal_items ?? []).map((it) => ({
+          ...it,
+          grams: Number(it.grams),
+          carbs_g: num(it.carbs_g),
+          protein_g: num(it.protein_g),
+          fat_g: num(it.fat_g),
+          kcal: num(it.kcal),
+        })),
       } as MealEntry;
     });
+  },
+  async addMealWithAdministration() {
+    throw new Error("O registro integrado à calculadora está disponível somente na demonstração.");
   },
   async addMeal(pid, m) {
     if (!m.items.length || m.items.some((item) => item.carbs_g == null)) {
@@ -201,35 +342,61 @@ export const cloudStore: DataStore = {
       fat_g: item.fat_g,
       kcal: item.kcal,
     }));
-    check(await supabase.rpc("save_meal_atomic", {
-      p_patient_id: pid,
-      p_meal: {
-        meal_type: m.meal_type,
-        eaten_at: new Date(m.eaten_at).toISOString(),
-        notes: m.notes,
-        is_favorite: m.is_favorite,
-        favorite_name: m.favorite_name,
-      },
-      p_items: items,
-    }));
+    check(
+      await supabase.rpc("save_meal_atomic", {
+        p_patient_id: pid,
+        p_meal: {
+          meal_type: m.meal_type,
+          eaten_at: new Date(m.eaten_at).toISOString(),
+          notes: m.notes,
+          is_favorite: m.is_favorite,
+          favorite_name: m.favorite_name,
+        },
+        p_items: items,
+      }),
+    );
   },
 
   async getSettings(pid) {
-    const row = check(await supabase.from("clinical_settings").select("*").eq("patient_id", pid).maybeSingle());
+    const row = check(
+      await supabase.from("clinical_settings").select("*").eq("patient_id", pid).maybeSingle(),
+    );
     if (!row) return { patient_id: pid, ...DEFAULT_SETTINGS };
-    return { ...row, carb_ratios: (row.carb_ratios as unknown as CarbRatio[]) ?? [] } as ClinicalSettings;
+    return {
+      ...row,
+      carb_ratios: (row.carb_ratios as unknown as CarbRatio[]) ?? [],
+    } as ClinicalSettings;
   },
   async saveSettings(pid, s) {
-    check(await supabase.from("clinical_settings").upsert({ ...s, carb_ratios: s.carb_ratios as unknown as Json, patient_id: pid }));
+    check(
+      await supabase
+        .from("clinical_settings")
+        .upsert({ ...s, carb_ratios: s.carb_ratios as unknown as Json, patient_id: pid }),
+    );
   },
 
   async listMembers(pid) {
     const uid = await myId();
-    const rows = check(await supabase.from("patient_members").select("id, user_id, role").eq("patient_id", pid));
-    return (rows ?? []).map((r) => ({ id: r.id, user_id: r.user_id, role: r.role, display_name: r.user_id === uid ? "Você" : null, is_me: r.user_id === uid }) satisfies PatientMember);
+    const rows = check(
+      await supabase.from("patient_members").select("id, user_id, role").eq("patient_id", pid),
+    );
+    return (rows ?? []).map(
+      (r) =>
+        ({
+          id: r.id,
+          user_id: r.user_id,
+          role: r.role,
+          display_name: r.user_id === uid ? "Você" : null,
+          is_me: r.user_id === uid,
+        }) satisfies PatientMember,
+    );
   },
   async inviteMember(pid, email, role) {
-    const res = await supabase.rpc("add_patient_member_by_email", { _patient: pid, _email: email, _role: role });
+    const res = await supabase.rpc("add_patient_member_by_email", {
+      _patient: pid,
+      _email: email,
+      _role: role,
+    });
     const out = check(res);
     return out === "ok" ? "ok" : "user_not_found";
   },
@@ -238,6 +405,13 @@ export const cloudStore: DataStore = {
   },
 
   async listAudit(pid, limit = 100) {
-    return check(await supabase.from("audit_logs").select("*").eq("patient_id", pid).order("changed_at", { ascending: false }).limit(limit)) as AuditEntry[];
+    return check(
+      await supabase
+        .from("audit_logs")
+        .select("*")
+        .eq("patient_id", pid)
+        .order("changed_at", { ascending: false })
+        .limit(limit),
+    ) as AuditEntry[];
   },
 };

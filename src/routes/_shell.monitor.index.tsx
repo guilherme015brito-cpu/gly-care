@@ -32,6 +32,7 @@ import {
 } from "@/components/glycare/ui-bits";
 import { GlucoseChart } from "@/components/glycare/GlucoseChart";
 import { DemoDoseCalculator } from "@/components/glycare/DemoDoseCalculator";
+import { InsulinActionChart } from "@/components/glycare/InsulinActionChart";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_shell/monitor/")({
@@ -268,6 +269,7 @@ function Dashboard() {
           Histórico
         </Link>
       </section>
+      {mode === "demo" && <InsulinActionChart />}
       <div className="monitor-details">
         <section>
           <div className="section-heading">

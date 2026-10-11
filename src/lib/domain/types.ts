@@ -3,7 +3,8 @@
 
 export type MemberRole = "caregiver" | "patient" | "professional_readonly";
 export type GlucoseSource = "simulation" | "manual" | "external";
-export type GlucoseTrend = "rising_fast" | "rising" | "stable" | "falling" | "falling_fast" | "unknown";
+export type GlucoseTrend =
+  "rising_fast" | "rising" | "stable" | "falling" | "falling_fast" | "unknown";
 export type GlucoseUnit = "mg/dL" | "mmol/L";
 export type ReadingQuality = "valid" | "questionable" | "invalid";
 export type AdministrationStatus = "performed" | "planned";
@@ -76,6 +77,8 @@ export interface PatientInsulin {
 }
 
 export interface InsulinAdministration {
+  /** In-memory demo association, never written to the Cloud schema. */
+  meal_id?: string;
   id: string;
   patient_id: string;
   insulin_id: string;
