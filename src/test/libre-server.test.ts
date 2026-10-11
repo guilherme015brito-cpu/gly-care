@@ -99,8 +99,20 @@ describe("Libre server access boundaries", () => {
   it("reports missing server configuration honestly without credential collection", async () => {
     vi.stubEnv("LIBRE_TOKEN_KEY", "");
     const result = await handleLibre({ action: "status", pid }, user, auth("caregiver"));
-    expect(result.status).toMatchObject({ ready: false, connected: false });
+    expect(result.status).toMatchObject({
+      ready: false,
+      connected: false,
+      setupIssue: "server_configuration",
+    });
     expect(mocks.createClient).not.toHaveBeenCalled();
+  });
+  it("reports an inaccessible integration schema without exposing database errors", async () => {
+    const db = database([]);
+    db.from.mockReturnValue(query(null, { message: "private database details" }));
+    const result = await handleLibre({ action: "status", pid }, user, auth("caregiver"));
+    expect(result.status).toMatchObject({ ready: false, setupIssue: "database_schema" });
+    expect(JSON.stringify(result)).not.toContain("private database details");
+    expect(mocks.login).not.toHaveBeenCalled();
   });
   it("does not sync a disconnected account", async () => {
     database([null]);

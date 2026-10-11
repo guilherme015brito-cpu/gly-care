@@ -43,6 +43,7 @@ export interface LibreStatus {
   name: string | null;
   lastSync: string | null;
   error: string | null;
+  setupIssue?: "server_configuration" | "database_schema";
 }
 export interface LibreCandidate {
   id: string;

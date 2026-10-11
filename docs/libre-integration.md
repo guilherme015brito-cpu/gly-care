@@ -6,6 +6,11 @@ or a dose calculator. No insulin/device writes are made. Demo remains isolated.
 
 ## Server activation
 
+For the current Vercel/Supabase project and Android testing, follow
+[the Portuguese deployment checklist](teste-android-libre.md). The Vite
+wrapper uses its existing Nitro plugin with the Vercel preset outside Lovable;
+production output includes server functions in `.vercel/output`.
+
 1. Apply `supabase/migrations/202610110001_libre_readonly.sql` to the existing
    Supabase project using its SQL editor or configured migration tooling.
    Do not reapply the original baseline migration.

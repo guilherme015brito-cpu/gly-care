@@ -53,6 +53,7 @@ export async function handleLibre(
             name: null,
             lastSync: null,
             error: LIBRE_ERRORS.setup,
+            setupIssue: "server_configuration",
           },
         };
       throw new LibreFailure("setup");
@@ -77,6 +78,7 @@ export async function handleLibre(
             name: null,
             lastSync: null,
             error: LIBRE_ERRORS.setup,
+            setupIssue: "database_schema",
           },
         };
       throw new LibreFailure("setup");

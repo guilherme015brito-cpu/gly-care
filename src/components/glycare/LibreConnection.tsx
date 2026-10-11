@@ -114,6 +114,16 @@ function CloudLibreConnection() {
           <Notice tone="warning">
             Conexão aguardando ativação no servidor. Nenhuma senha será solicitada enquanto a
             configuração estiver incompleta.
+            {state.setupIssue === "server_configuration" && (
+              <span className="mt-1 block">
+                A configuração privada do servidor está incompleta.
+              </span>
+            )}
+            {state.setupIssue === "database_schema" && (
+              <span className="mt-1 block">
+                Verifique a migração Libre e o acesso do servidor ao banco.
+              </span>
+            )}
           </Notice>
         )}
         {state?.connected && (
