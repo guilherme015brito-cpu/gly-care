@@ -1,5 +1,60 @@
 begin;
 
+-- Some existing deployments have patient/meal tables but no glucose schema.
+-- Add only the missing prerequisites; never replay the full application schema.
+do $$
+begin
+  if to_regclass('public.glucose_readings') is null then
+    if to_regtype('public.glucose_source') is null then
+      create type public.glucose_source as enum ('simulation', 'manual', 'external');
+    end if;
+    if to_regtype('public.glucose_trend') is null then
+      create type public.glucose_trend as enum
+        ('rising_fast', 'rising', 'stable', 'falling', 'falling_fast', 'unknown');
+    end if;
+    create table public.glucose_readings (
+      id uuid primary key default gen_random_uuid(),
+      patient_id uuid not null references public.patients(id) on delete cascade,
+      value numeric(7,2) not null check (value > 0),
+      unit text not null check (unit in ('mg/dL', 'mmol/L')),
+      value_mgdl numeric(7,2) not null check (value_mgdl between 10 and 1000),
+      measured_at timestamptz not null,
+      received_at timestamptz not null default now(),
+      source public.glucose_source not null,
+      provider_id text not null default 'manual' check (char_length(provider_id) <= 60),
+      external_id text check (char_length(external_id) <= 200),
+      trend public.glucose_trend not null default 'unknown',
+      quality text not null default 'valid' check (quality in ('valid', 'questionable', 'invalid')),
+      raw_payload jsonb,
+      notes text check (char_length(notes) <= 500),
+      created_by uuid default auth.uid(),
+      created_at timestamptz not null default now()
+    );
+    create index glucose_readings_patient_time on public.glucose_readings (patient_id, measured_at desc);
+    create unique index glucose_dedupe_external on public.glucose_readings
+      (patient_id, provider_id, external_id) where external_id is not null;
+    create unique index glucose_dedupe_time on public.glucose_readings
+      (patient_id, provider_id, measured_at);
+    alter table public.glucose_readings enable row level security;
+    revoke all on public.glucose_readings from anon, authenticated;
+    grant select, insert, update on public.glucose_readings to authenticated;
+    grant all on public.glucose_readings to service_role;
+    create policy "members read" on public.glucose_readings for select to authenticated
+      using (public.is_patient_member(patient_id));
+    create policy "writers insert" on public.glucose_readings for insert to authenticated
+      with check (public.can_write_patient(patient_id));
+    create policy "writers update" on public.glucose_readings for update to authenticated
+      using (public.can_write_patient(patient_id)) with check (public.can_write_patient(patient_id));
+    if to_regprocedure('public.audit_trigger()') is not null then
+      create trigger audit_glucose_readings after insert or update or delete on public.glucose_readings
+        for each row execute function public.audit_trigger();
+    elsif to_regprocedure('public.audit_insulin_changes()') is not null then
+      create trigger audit_glucose_readings after insert or update or delete on public.glucose_readings
+        for each row execute function public.audit_insulin_changes();
+    end if;
+  end if;
+end $$;
+
 -- No browser role can read these tables, including encrypted session tickets.
 create table public.libre_connections (
   patient_id uuid primary key references public.patients(id) on delete cascade,

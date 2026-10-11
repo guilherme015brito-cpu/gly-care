@@ -41,12 +41,18 @@ de ambiente, faca um novo deploy, pois as variaveis VITE sao embutidas no build.
 
 Execute `supabase/tests/libre_preflight.sql` no SQL Editor do projeto correto.
 Essa verificacao nao le registros pessoais e nao altera tabelas.
-`patients`, `patient_members` e `glucose_readings` precisam existir, com RLS.
-Se faltar a estrutura original, interrompa e compatibilize o esquema existente:
-nao reaplique `drizzle/migrations/0000_migration.sql` em um banco ja populado.
+`patients` e `patient_members` precisam existir, com RLS e os helpers
+`is_patient_member` e `can_write_patient`. Nao reaplique
+`drizzle/migrations/0000_migration.sql` em um banco ja populado.
 
-Se apenas os objetos Libre estiverem ausentes, aplique uma vez
+Se os objetos Libre estiverem ausentes, aplique uma vez
 `supabase/migrations/202610110001_libre_readonly.sql` e repita a verificacao.
+Essa migracao tambem cria `glucose_readings`, seus tipos, indices e politicas
+quando a tabela estiver ausente, sem alterar cadastros existentes.
+Nao reaplique quando as tabelas Libre ja existirem. A ativacao no projeto
+`eiwysmunvpylfwanxlvj` foi aplicada em 2026-10-11.
+O teste `supabase/tests/libre_activation.sql` usa apenas fixtures temporarias
+e termina com rollback; verifica importacao, duplicacao, auditoria e isolamento.
 As tres tabelas Libre devem ter RLS e NAO permitir SELECT a `anon` ou
 `authenticated`. As tres funcoes devem existir. Nao libere essas tabelas para
 o navegador para resolver erros: o conector as acessa pelo servidor.

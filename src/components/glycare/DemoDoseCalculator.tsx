@@ -55,11 +55,16 @@ export function DemoDoseCalculator({
   const [localIncrement, setLocalIncrement] = useState(0.5);
   const increment = mealDose?.increment ?? localIncrement;
   const setIncrement = mealDose?.setIncrement ?? setLocalIncrement;
-  if (mode !== "demo" || reading?.source === "external") return null;
+  if (mode === "demo" && reading?.source === "external") return null;
+  const monitorReading = mode === "demo" ? reading : undefined;
   const correctionOnly = kind === "correction";
   const glucose =
-    (mealDose ? null : glucoseOverride) ??
-    (correctionOnly || followMonitor ? (reading ? String(reading.value_mgdl) : "") : "180");
+    (mealDose && mode === "cloud" ? mealDose.scenarioGlucose : mealDose ? null : glucoseOverride) ??
+    (correctionOnly || followMonitor
+      ? monitorReading
+        ? String(monitorReading.value_mgdl)
+        : ""
+      : "180");
   const parameters = mealDose
     ? mealDose.parameters
     : settings.data
@@ -108,6 +113,8 @@ export function DemoDoseCalculator({
       <p className="mb-4 text-xs text-muted-foreground">
         Simulação com dados fictícios ·{" "}
         {correctionOnly ? "correção de glicemia" : "refeição + correção de glicemia"}
+        {mode === "cloud" &&
+          " · fatores de teste, não usar para aplicação de insulina. A leitura do Libre não é importada e o resultado não é registrado como aplicação."}
       </p>
       {settings.error || mealDose?.error ? (
         <ErrorState error={settings.error ?? mealDose?.error} />
@@ -132,15 +139,23 @@ export function DemoDoseCalculator({
             <div className="grid grid-cols-2 gap-3">
               <Field
                 id={id + "-glucose"}
-                label={correctionOnly ? "Glicemia simulada (mg/dL)" : "Glicemia (mg/dL)"}
+                label={
+                  correctionOnly || mode === "cloud"
+                    ? "Glicemia simulada (mg/dL)"
+                    : "Glicemia (mg/dL)"
+                }
               >
                 <Input
                   id={id + "-glucose"}
                   inputMode="decimal"
                   className={inputCls}
                   value={glucose}
-                  readOnly={!!mealDose}
-                  onChange={(e) => setGlucoseOverride(e.target.value)}
+                  readOnly={!!mealDose && mode === "demo"}
+                  onChange={(e) =>
+                    mealDose && mode === "cloud"
+                      ? mealDose.setScenarioGlucose(e.target.value)
+                      : setGlucoseOverride(e.target.value)
+                  }
                 />
               </Field>
               <Field id={id + "-rounding"} label="Arredondamento (UI)">
@@ -157,7 +172,7 @@ export function DemoDoseCalculator({
                 </select>
               </Field>
             </div>
-            {(correctionOnly || followMonitor) && (
+            {mode === "demo" && (correctionOnly || followMonitor) && (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
                   {(mealDose || glucoseOverride === null) && reading

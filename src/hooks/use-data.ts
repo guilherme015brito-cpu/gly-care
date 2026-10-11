@@ -54,9 +54,7 @@ export function useFoods() {
   const { store, pid, key } = usePatientStore();
   return useQuery({
     queryKey: [...key, "foods", "taco-local"],
-    // Cloud food tables are not provisioned yet. Local IDs never go to Supabase.
-    queryFn: async () =>
-      store.mode === "demo" ? [...tacoFoods, ...(await store.listFoods(pid))] : tacoFoods,
+    queryFn: async () => [...tacoFoods, ...(await store.listFoods(pid))],
   });
 }
 export function useMeals(limit = 50) {

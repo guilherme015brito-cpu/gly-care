@@ -90,12 +90,20 @@ describe("Automatic monitoring calculator", () => {
       screen.getByText("Preencha uma glicemia numérica e não negativa para simular."),
     ).toBeInTheDocument();
   });
-  it("does not calculate from an authenticated patient's readings", async () => {
+  it("offers manual simulation in cloud without importing a patient's readings", async () => {
     const { wrapper } = setup("cloud");
     render(<DemoDoseCalculator kind="correction" at={reading.measured_at} reading={reading} />, {
       wrapper,
     });
-    expect(screen.queryByText("Resultado demonstrativo")).not.toBeInTheDocument();
+    await screen.findByText("Resultado demonstrativo");
+    expect(screen.getByLabelText("Glicemia simulada (mg/dL)")).toHaveValue("");
+    expect(
+      screen.queryByRole("button", { name: "Usar leitura do monitor" }),
+    ).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Glicemia simulada (mg/dL)"), {
+      target: { value: "180" },
+    });
+    expect(screen.getByText("Correção: máx(0, (180 − 120) ÷ 30)")).toBeInTheDocument();
   });
   it("switches the correction factor when the scenario time changes", async () => {
     const { wrapper, client } = setup();

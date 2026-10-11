@@ -31,13 +31,12 @@ function setMode(mode: "demo" | "cloud") {
   store =
     mode === "demo"
       ? demo
-      : {
-          ...demo,
+      : Object.assign(Object.create(demo) as DataStore, {
           mode: "cloud",
-          listFoods: vi.fn().mockRejectedValue(new Error("food_catalog must not be queried")),
+          listFoods: vi.fn().mockResolvedValue([]),
           listMeals: vi.fn().mockResolvedValue([]),
           addMeal: vi.fn().mockRejectedValue(new Error("local IDs must not reach Supabase")),
-        };
+        });
   vi.mocked(usePatientStore).mockReturnValue({
     store,
     mode,
@@ -70,7 +69,7 @@ afterEach(() => {
 
 describe("Alimentação with local TACO", () => {
   it.each(["demo", "cloud"] as const)(
-    "loads all TACO foods in %s mode without querying cloud food tables",
+    "loads all TACO foods alongside custom foods in %s mode",
     async (mode) => {
       setMode(mode);
       const { result } = renderHook(() => ({ foods: useFoods(), meals: useMeals() }), { wrapper });
@@ -79,7 +78,7 @@ describe("Alimentação with local TACO", () => {
       );
       expect(result.current.foods.data!.filter((food) => food.source === "TACO")).toHaveLength(597);
       if (mode === "cloud") {
-        expect(store.listFoods).not.toHaveBeenCalled();
+        expect(store.listFoods).toHaveBeenCalledWith("demo-patient");
         expect(store.listMeals).toHaveBeenCalledWith("demo-patient", 50);
         expect(result.current.meals.data).toEqual([]);
         expect(result.current.foods.data).toHaveLength(597);
@@ -336,8 +335,46 @@ describe("Alimentação with local TACO", () => {
     const button = screen.getByRole("button", { name: "Registrar refeição" });
     expect(button).toBeEnabled();
     fireEvent.click(button);
+    fireEvent.click(await screen.findByRole("button", { name: "Registrar somente refeição" }));
     await waitFor(() => expect(store.addMeal).toHaveBeenCalledTimes(1));
     expect(savedMeals).toHaveLength(1);
-    expect(store.listFoods).not.toHaveBeenCalled();
+    expect(store.listFoods).toHaveBeenCalled();
   });
+
+  it.each([true, false])(
+    "records a manual cloud dose with applied=%s without transferring the simulation",
+    async (applied) => {
+      setMode("cloud");
+      await getDemoStore().listPatients();
+      store.addMealWithAdministration = vi.fn().mockResolvedValue(undefined);
+      const listGlucose = vi.spyOn(store, "listGlucose");
+      render(<FoodPage />, { wrapper });
+      await add("Arroz, tipo 1, cozido", "100");
+      await screen.findByText("Resultado demonstrativo");
+      expect(screen.getByLabelText("Glicemia simulada (mg/dL)")).toHaveValue("");
+      expect(listGlucose).not.toHaveBeenCalled();
+      fireEvent.change(screen.getByLabelText("Glicemia simulada (mg/dL)"), {
+        target: { value: "180" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+      expect(await screen.findByLabelText("Dose informada (UI)")).toHaveValue("");
+      expect(screen.queryByText("Dose calculada")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Sim, registrar aplicação" })).toBeDisabled();
+      fireEvent.change(screen.getByLabelText("Dose informada (UI)"), { target: { value: "2,5" } });
+      const button = screen.getByRole("button", {
+        name: applied ? "Sim, registrar aplicação" : "Não, registrar pendente",
+      });
+      fireEvent.click(button);
+      fireEvent.click(button);
+      await waitFor(() => expect(store.addMealWithAdministration).toHaveBeenCalledTimes(1));
+      const call = vi.mocked(store.addMealWithAdministration).mock.calls[0]!;
+      expect(call[2]).toMatchObject({
+        dose: 2.5,
+        glucose_before: null,
+        status: applied ? "performed" : "planned",
+        confirmed: applied,
+      });
+      expect(call[3]).toMatch(/^[0-9a-f-]{36}$/);
+    },
+  );
 });

@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { useAdministrations, useCatalog } from "@/hooks/use-data";
+import { usePatientStore } from "@/lib/app-context";
 import {
   DEMO_INSULIN_PROFILES,
   demoActionApplications,
@@ -26,6 +27,7 @@ const timeLabel = (ts: number) =>
 const colors = { rapid: "#d9526c", basal: "#168779" };
 
 export function InsulinActionChart() {
+  const { mode } = usePatientStore();
   const admins = useAdministrations(200);
   const catalog = useCatalog();
   const [hours, setHours] = useState(24);
@@ -60,7 +62,10 @@ export function InsulinActionChart() {
             <Syringe size={17} aria-hidden /> Insulinas em ação
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {active.length} aplicações na janela de ação ilustrativa · dados de demonstração
+            {active.length} aplicações na janela de ação ilustrativa ·{" "}
+            {mode === "demo"
+              ? "dados de demonstração"
+              : "registros confirmados, perfil ilustrativo; não representa insulina restante"}
           </p>
         </div>
         <div

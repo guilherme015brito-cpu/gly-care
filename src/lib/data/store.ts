@@ -76,11 +76,12 @@ export interface DataStore {
 
   listMeals(pid: string, limit?: number): Promise<MealEntry[]>;
   addMeal(pid: string, meal: NewMeal): Promise<void>;
-  /** Demo-only atomic meal + administration; Cloud must reject this simulation workflow. */
+  /** Atomic meal + explicitly confirmed/manual administration; never infer performed status. */
   addMealWithAdministration(
     pid: string,
     meal: NewMeal,
     administration: AdministrationInput,
+    requestId?: string,
   ): Promise<void>;
 
   getSettings(pid: string): Promise<ClinicalSettings>;

@@ -246,9 +246,11 @@ function Dashboard() {
           )}
         </section>
       </div>
-      {mode === "demo" && (
-        <DemoDoseCalculator kind="correction" at={new Date().toISOString()} reading={latest} />
-      )}
+      <DemoDoseCalculator
+        kind="correction"
+        at={new Date().toISOString()}
+        reading={mode === "demo" ? latest : undefined}
+      />
       <dl className="monitor-stats">
         <div>
           <dt>Leituras na faixa</dt>
@@ -292,7 +294,7 @@ function Dashboard() {
           Histórico
         </Link>
       </section>
-      {mode === "demo" && <InsulinActionChart />}
+      <InsulinActionChart />
       <div className="monitor-details">
         <section>
           <div className="section-heading">

@@ -23,6 +23,8 @@ import type { DataStore } from "./store";
 import type { Json } from "@/integrations/supabase/types";
 import { libreRequest } from "../glucose/libre.functions";
 import { validateDosePeriods } from "../dose-periods";
+import { administrationSchema } from "../validation";
+import type { NewMeal } from "./store";
 
 function check<T>(res: { data: T; error: { message: string; code?: string } | null }): T {
   if (res.error) throw new Error(friendlyError(res.error));
@@ -46,6 +48,45 @@ async function myId(): Promise<string> {
 }
 
 const num = (v: unknown): number | null => (v == null ? null : Number(v));
+
+function mealPayload(m: NewMeal) {
+  if (!m.items.length || m.items.some((item) => item.carbs_g == null)) {
+    throw new Error("Refeição sem alimentos ou com carboidratos incompletos. Nada foi salvo.");
+  }
+  return {
+    p_meal: {
+      meal_type: m.meal_type,
+      eaten_at: new Date(m.eaten_at).toISOString(),
+      notes: m.notes,
+      is_favorite: m.is_favorite,
+      favorite_name: m.favorite_name,
+    },
+    p_items: m.items.map((item) => ({
+      food_id: item.food_id,
+      food_name: item.food_name,
+      food_source: item.food_source,
+      grams: item.grams,
+      carbs_g: item.carbs_g,
+      protein_g: item.protein_g,
+      fat_g: item.fat_g,
+      kcal: item.kcal,
+    })),
+  };
+}
+
+// Keep the generated Supabase schema intact; this new RPC has a narrow local contract.
+const mealWithAdministrationClient = supabase as unknown as {
+  rpc(
+    name: "save_meal_with_administration",
+    args: {
+      p_patient_id: string;
+      p_meal: Json;
+      p_items: Json;
+      p_administration: Json;
+      p_request_id: string;
+    },
+  ): PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>;
+};
 
 export const cloudStore: DataStore = {
   mode: "cloud",
@@ -330,37 +371,34 @@ export const cloudStore: DataStore = {
       } as MealEntry;
     });
   },
-  async addMealWithAdministration() {
-    throw new Error("O registro integrado à calculadora está disponível somente na demonstração.");
+  async addMealWithAdministration(pid, meal, administration, requestId = crypto.randomUUID()) {
+    const parsed = administrationSchema.safeParse({
+      ...administration,
+      dose: String(administration.dose),
+      glucose_before:
+        administration.glucose_before == null ? "" : String(administration.glucose_before),
+      notes: administration.notes ?? undefined,
+      injection_site: administration.injection_site ?? undefined,
+      recorded_by_name: administration.recorded_by_name ?? undefined,
+    });
+    if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Aplicação inválida.");
+    check(
+      await mealWithAdministrationClient.rpc("save_meal_with_administration", {
+        p_patient_id: pid,
+        ...mealPayload(meal),
+        p_administration: { ...parsed.data },
+        p_request_id: requestId,
+      }),
+    );
   },
   async addMeal(pid, m) {
-    if (!m.items.length || m.items.some((item) => item.carbs_g == null)) {
-      throw new Error("Refeição sem alimentos ou com carboidratos incompletos. Nada foi salvo.");
-    }
     // One RPC request = one database transaction: neither the meal nor its items
     // persist if validation or insertion of any item fails.
     // IDs such as taco-003 remain strings because meal_items.food_id is TEXT.
-    const items = m.items.map((item) => ({
-      food_id: item.food_id,
-      food_name: item.food_name,
-      food_source: item.food_source,
-      grams: item.grams,
-      carbs_g: item.carbs_g,
-      protein_g: item.protein_g,
-      fat_g: item.fat_g,
-      kcal: item.kcal,
-    }));
     check(
       await supabase.rpc("save_meal_atomic", {
         p_patient_id: pid,
-        p_meal: {
-          meal_type: m.meal_type,
-          eaten_at: new Date(m.eaten_at).toISOString(),
-          notes: m.notes,
-          is_favorite: m.is_favorite,
-          favorite_name: m.favorite_name,
-        },
-        p_items: items,
+        ...mealPayload(m),
       }),
     );
   },
