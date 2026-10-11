@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useAdministrations, useCatalog } from "@/hooks/use-data";
+import { useAdministrations, useCatalog, useActionProfiles } from "@/hooks/use-data";
 import { usePatientStore } from "@/lib/app-context";
 import {
   DEMO_INSULIN_PROFILES,
@@ -21,6 +21,7 @@ import {
 } from "@/lib/insulin/demo-action";
 import { fmtDateTime, fmtNum } from "@/lib/domain/labels";
 import { EmptyState, ErrorState, LoadingState } from "./ui-bits";
+import { BasalReminders } from "./BasalReminders";
 
 const timeLabel = (ts: number) =>
   new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -30,6 +31,7 @@ export function InsulinActionChart() {
   const { mode } = usePatientStore();
   const admins = useAdministrations(200);
   const catalog = useCatalog();
+  const profiles = useActionProfiles();
   const [hours, setHours] = useState(24);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -38,10 +40,22 @@ export function InsulinActionChart() {
   }, []);
   const from = now - hours * 1800000,
     to = now + hours * 1800000;
-  const applications = demoActionApplications(admins.data ?? [], catalog.data ?? [])
+  const applications = demoActionApplications(
+    admins.data ?? [],
+    catalog.data ?? [],
+    profiles.data ?? [],
+    mode === "demo",
+  )
     .filter((a) => a.start <= to && a.end > from)
     .sort((a, b) => b.start - a.start);
   const active = applications.filter((a) => a.start <= now && a.end > now);
+  const displayedProfiles = Array.from(
+    new Map(applications.map((a) => [a.administration.insulin_id, a.profile])).values(),
+  );
+  const referenceProfiles =
+    mode === "demo" && !displayedProfiles.length
+      ? Object.values(DEMO_INSULIN_PROFILES)
+      : displayedProfiles;
   const data = demoActionSeries(applications, from, to);
   const unknown = (admins.data ?? []).filter(
     (a) =>
@@ -50,12 +64,17 @@ export function InsulinActionChart() {
       !a.is_superseded &&
       new Date(a.administered_at).getTime() >= from &&
       !catalog.data?.some(
-        (c) => c.id === a.insulin_id && ["fiasp", "lantus"].includes(c.brand_name.toLowerCase()),
+        (c) =>
+          c.id === a.insulin_id &&
+          (mode === "demo"
+            ? ["fiasp", "lantus"].includes(c.brand_name.toLowerCase())
+            : profiles.data?.some((p) => p.insulin_id === c.id && p.visual_profile)),
       ),
   );
 
   return (
     <section className="insulin-action-section" aria-labelledby="insulin-action-title">
+      <BasalReminders />
       <div className="chart-toolbar">
         <div>
           <h2 id="insulin-action-title" className="flex items-center gap-2">
@@ -80,9 +99,9 @@ export function InsulinActionChart() {
           ))}
         </div>
       </div>
-      {admins.error || catalog.error ? (
-        <ErrorState error={admins.error ?? catalog.error} />
-      ) : admins.isLoading || catalog.isLoading ? (
+      {admins.error || catalog.error || profiles.error ? (
+        <ErrorState error={admins.error ?? catalog.error ?? profiles.error} />
+      ) : admins.isLoading || catalog.isLoading || profiles.isLoading ? (
         <LoadingState />
       ) : !applications.length ? (
         <EmptyState title="Nenhuma aplicação confirmada com perfil disponível">
@@ -96,18 +115,18 @@ export function InsulinActionChart() {
             <div className="insulin-action-legend">
               <span>
                 <i style={{ background: colors.rapid }} />
-                Fiasp · rápida
+                Prandial
               </span>
               <span>
                 <i style={{ background: colors.basal }} />
-                Lantus · basal
+                Basal
               </span>
               <span>Perfil relativo (%)</span>
             </div>
             <div
               className="insulin-action-canvas"
               role="img"
-              aria-label="Perfis ilustrativos de ação relativa, aplicações e picos de Fiasp e Lantus. Não representa unidades de insulina restantes."
+              aria-label="Perfis ilustrativos de acao, aplicacoes e picos. Nao representa insulina restante."
             >
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data} margin={{ top: 24, right: 16, bottom: 12, left: 0 }}>
@@ -202,8 +221,9 @@ export function InsulinActionChart() {
               </ResponsiveContainer>
             </div>
             <p className="text-xs text-muted-foreground">
-              Curvas normalizadas por aplicação, não somadas. Os pontos marcam picos ilustrativos da
-              Fiasp; a Lantus não tem pico pronunciado. Não é cálculo de insulina restante (IOB).
+              Curvas normalizadas por aplicação, não somadas. Os pontos marcam picos ilustrativos
+              dos perfis prandiais; os perfis basais não têm pico pronunciado. Não é cálculo de
+              insulina restante (IOB).
             </p>
           </div>
           <ul className="insulin-action-list" aria-label="Aplicações e janelas de ação">
@@ -228,6 +248,16 @@ export function InsulinActionChart() {
                     : `Pico ilustrativo · ${fmtDateTime(new Date(a.peak).toISOString())}`}
                 </p>
                 <p>Fim ilustrativo · {fmtDateTime(new Date(a.end).toISOString())}</p>
+                <p>
+                  Agora:{" "}
+                  {a.end <= now
+                    ? "fora da janela ilustrativa"
+                    : a.profile.role === "basal"
+                      ? "perfil basal ilustrativo"
+                      : a.peak != null && now < a.peak
+                        ? "fase ascendente ilustrativa"
+                        : "fase descendente ilustrativa"}
+                </p>
               </li>
             ))}
           </ul>
@@ -242,7 +272,7 @@ export function InsulinActionChart() {
       <details className="mt-4 border-t pt-3 text-xs text-muted-foreground">
         <summary className="cursor-pointer font-semibold">Perfis e referências</summary>
         <div className="insulin-profile-references">
-          {Object.values(DEMO_INSULIN_PROFILES).map((p) => (
+          {referenceProfiles.map((p) => (
             <div key={p.name}>
               <strong className="text-foreground">{p.name}</strong>
               <p>
@@ -260,11 +290,20 @@ export function InsulinActionChart() {
             </div>
           ))}
           <p>
-            A Fiasp usa marcos de 17 min, 122 min e 6 h do estudo de 0,2 UI/kg apenas para desenhar
-            o perfil. As rampas da Lantus são ilustrativas. Dose, pessoa e local da aplicação
-            alteram a ação real. O esquema de Lantus 18 UI às 07h e 12 UI às 22h é fictício; a bula
-            descreve uso uma vez ao dia.
+            Os marcos cadastrados desenham curvas ilustrativas; não são medições no paciente. As
+            referências de Fiasp usam 17 min, 120 min e 5 h; as rampas da Lantus são ilustrativas.
+            Dose, pessoa e local da aplicação alteram a ação real. A bula de Lantus descreve uso uma
+            vez ao dia; a quantidade de aplicações cadastrada não é uma recomendação do aplicativo.
           </p>
+          <a
+            href="https://www.novonordiskbrasilinfo.com/guia-de-uso-fiasp.html"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 font-semibold text-primary"
+          >
+            Fiasp: guia oficial brasileiro (1 a 3 h de pico; 3 a 5 h de duração)
+            <ExternalLink size={12} aria-hidden />
+          </a>
         </div>
       </details>
     </section>

@@ -250,6 +250,7 @@ export type Database = {
       }
       insulin_action_profiles: {
         Row: {
+          visual_profile: Json | null
           created_at: string
           created_by: string
           effective_duration_max_minutes: number | null
@@ -273,6 +274,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           effective_duration_max_minutes?: number | null
+          visual_profile?: Json | null
           effective_duration_min_minutes?: number | null
           effective_duration_text?: string | null
           id?: string
@@ -293,6 +295,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           effective_duration_max_minutes?: number | null
+          visual_profile?: Json | null
           effective_duration_min_minutes?: number | null
           effective_duration_text?: string | null
           id?: string
@@ -622,6 +625,8 @@ export type Database = {
       }
       patient_insulins: {
         Row: {
+          daily_schedule: Json
+          schedule_timezone: string
           active: boolean
           created_at: string
           created_by: string
@@ -638,6 +643,8 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          daily_schedule?: Json
+          schedule_timezone?: string
           created_at?: string
           created_by?: string
           ended_on?: string | null
@@ -653,6 +660,8 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          daily_schedule?: Json
+          schedule_timezone?: string
           created_at?: string
           created_by?: string
           ended_on?: string | null

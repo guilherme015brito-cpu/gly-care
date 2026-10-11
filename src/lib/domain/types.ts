@@ -52,6 +52,7 @@ export interface InsulinCatalogItem {
 }
 
 export interface InsulinActionProfile {
+  visual_profile?: import("../insulin/config").VisualProfile | null;
   id: string;
   insulin_id: string;
   onset_text: string | null;
@@ -64,6 +65,8 @@ export interface InsulinActionProfile {
 }
 
 export interface PatientInsulin {
+  daily_schedule?: import("../insulin/config").DailySchedule;
+  schedule_timezone?: string;
   id: string;
   patient_id: string;
   insulin_id: string;
@@ -77,6 +80,7 @@ export interface PatientInsulin {
 }
 
 export interface InsulinAdministration {
+  scheduled_key?: string | null;
   /** In-memory demo association, never written to the Cloud schema. */
   meal_id?: string;
   id: string;

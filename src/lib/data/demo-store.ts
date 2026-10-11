@@ -19,7 +19,7 @@ import { MockGlucoseProvider, filterNewReadings, normalize } from "../glucose/pr
 import type { DataStore } from "./store";
 import { tacoFoods } from "../taco-foods";
 import { computeItem, sumItems } from "../nutrition";
-import { DEMO_INSULIN_PROFILES } from "../insulin/demo-action";
+import { REFERENCE_PRESETS } from "../insulin/config";
 import { validateDosePeriods } from "../dose-periods";
 
 const uid = () =>
@@ -156,16 +156,12 @@ class DemoStore implements DataStore {
     };
     this.catalog = [rapid, basal];
     this.profiles = [rapid, basal].map((i, index) => {
-      const p = index === 0 ? DEMO_INSULIN_PROFILES.fiasp : DEMO_INSULIN_PROFILES.lantus;
+      const p = index === 0 ? REFERENCE_PRESETS.fiasp : REFERENCE_PRESETS.lantus;
       return {
         id: uid(),
         insulin_id: i.id,
-        onset_text: p.onsetText,
-        peak_text: p.peakText,
-        effective_duration_text: p.durationText,
-        max_duration_text: null,
-        source_reference: p.source,
-        source_review_date: "2026-10-10",
+        ...p,
+        source_review_date: "2026-10-11",
         validation_status: "under_review" as const,
       };
     });
@@ -356,12 +352,47 @@ class DemoStore implements DataStore {
       source_reference: i.source_reference,
       source_review_date: i.source_review_date,
       validation_status: i.validation_status,
+      visual_profile: i.visual_profile ?? null,
     });
   }
 
   async listPatientInsulins() {
     await this.seed();
     return this.patientInsulins;
+  }
+  async saveActionProfile(insulinId: string, i: Parameters<DataStore["addCatalogInsulin"]>[0]) {
+    const p = this.profiles.find((p) => p.insulin_id === insulinId);
+    if (!p) throw new Error("Perfil nao encontrado.");
+    Object.assign(p, {
+      onset_text: i.onset_text,
+      peak_text: i.peak_text,
+      effective_duration_text: i.effective_duration_text,
+      max_duration_text: i.max_duration_text,
+      source_reference: i.source_reference,
+      source_review_date: i.source_review_date,
+      validation_status: i.validation_status,
+      visual_profile: i.visual_profile ?? null,
+    });
+  }
+  async confirmScheduledBasal(id: string, time: string, at: string) {
+    const p = this.patientInsulins.find((p) => p.id === id && p.active && p.role === "basal");
+    const slot = p?.daily_schedule?.find((s) => s.time === time);
+    if (!p || !slot) throw new Error("Horario nao encontrado.");
+    const day = new Date(at).toLocaleDateString("en-CA", { timeZone: p.schedule_timezone });
+    const tag = `schedule:${id}:${day}:${time}`;
+    if (this.admins.some((a) => a.notes === tag)) return;
+    this.insertAdministration(p.patient_id, {
+      insulin_id: p.insulin_id,
+      dose: slot.dose,
+      administered_at: at,
+      purpose: "basal",
+      status: "performed",
+      confirmed: true,
+      glucose_before: null,
+      injection_site: null,
+      notes: tag,
+      recorded_by_name: null,
+    });
   }
   async addPatientInsulin(pid: string, p: Parameters<DataStore["addPatientInsulin"]>[1]) {
     const row = { ...p, id: uid(), patient_id: pid, active: true, ended_on: null };

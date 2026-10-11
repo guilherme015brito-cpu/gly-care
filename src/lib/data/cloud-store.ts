@@ -24,6 +24,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { libreRequest } from "../glucose/libre.functions";
 import { validateDosePeriods } from "../dose-periods";
 import { administrationSchema } from "../validation";
+import { dailyScheduleSchema } from "../insulin/config";
 import type { NewMeal } from "./store";
 
 function check<T>(res: { data: T; error: { message: string; code?: string } | null }): T {
@@ -210,14 +211,59 @@ export const cloudStore: DataStore = {
         source_reference: i.source_reference,
         source_review_date: i.source_review_date,
         validation_status: i.validation_status,
+        ...{ visual_profile: i.visual_profile ?? null },
       }),
     );
   },
 
   async listPatientInsulins(pid) {
-    return check(
+    const rows = check(
       await supabase.from("patient_insulins").select("*").eq("patient_id", pid).order("created_at"),
-    ) as PatientInsulin[];
+    );
+    return (rows ?? []).map((row) => ({
+      ...row,
+      role: row.role as PatientInsulin["role"],
+      daily_schedule: dailyScheduleSchema.parse(row.daily_schedule),
+    }));
+  },
+  async saveActionProfile(insulinId, i) {
+    check(
+      await supabase
+        .from("insulin_action_profiles")
+        .update({
+          onset_text: i.onset_text,
+          peak_text: i.peak_text,
+          effective_duration_text: i.effective_duration_text,
+          max_duration_text: i.max_duration_text,
+          source_reference: i.source_reference,
+          source_review_date: i.source_review_date,
+          validation_status: i.validation_status,
+          ...{ visual_profile: i.visual_profile ?? null },
+        })
+        .eq("insulin_id", insulinId)
+        .eq("created_by", await myId())
+        .select("id")
+        .then((r) => {
+          if (!r.error && !r.data?.length)
+            throw new Error("Perfil não encontrado ou sem permissão para editar.");
+          return r;
+        }),
+    );
+  },
+  async confirmScheduledBasal(patientInsulinId, scheduledTime, administeredAt) {
+    const client = supabase as unknown as {
+      rpc(
+        name: string,
+        args: Record<string, string>,
+      ): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+    };
+    check(
+      await client.rpc("confirm_scheduled_basal", {
+        p_insulin: patientInsulinId,
+        p_time: scheduledTime,
+        p_administered_at: administeredAt,
+      }),
+    );
   },
   async addPatientInsulin(pid, p) {
     check(await supabase.from("patient_insulins").insert({ ...p, patient_id: pid }));

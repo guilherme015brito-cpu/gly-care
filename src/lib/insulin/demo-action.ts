@@ -1,33 +1,43 @@
-import type { InsulinAdministration, InsulinCatalogItem } from "../domain/types";
+import type {
+  InsulinAdministration,
+  InsulinCatalogItem,
+  InsulinActionProfile,
+} from "../domain/types";
+import { REFERENCE_PRESETS, visualProfileSchema } from "./config";
 
 export const DEMO_INSULIN_PROFILES = {
   fiasp: {
     name: "Fiasp",
-    role: "rapid",
-    onsetMinutes: 17,
-    peakMinutes: 122,
-    durationMinutes: 360,
-    onsetText: "16–20 min",
-    peakText: "91–133 min",
-    durationText: "5–7 h",
-    source: "https://www.novo-pi.com/fiasp.pdf",
+    ...REFERENCE_PRESETS.fiasp.visual_profile,
+    onsetText: REFERENCE_PRESETS.fiasp.onset_text,
+    peakText: REFERENCE_PRESETS.fiasp.peak_text,
+    durationText: REFERENCE_PRESETS.fiasp.effective_duration_text,
+    source: REFERENCE_PRESETS.fiasp.source_reference,
     sourceLabel: "Novo Nordisk · bula, tabela 6",
   },
   lantus: {
     name: "Lantus",
-    role: "basal",
-    onsetMinutes: null,
-    peakMinutes: null,
-    durationMinutes: 1440,
-    onsetText: "Absorção gradual",
-    peakText: "Sem pico pronunciado",
-    durationText: "Cerca de 24 h",
-    source: "https://products.sanofi.us/lantus/lantus.html",
+    ...REFERENCE_PRESETS.lantus.visual_profile,
+    onsetText: REFERENCE_PRESETS.lantus.onset_text,
+    peakText: REFERENCE_PRESETS.lantus.peak_text,
+    durationText: REFERENCE_PRESETS.lantus.effective_duration_text,
+    source: REFERENCE_PRESETS.lantus.source_reference,
     sourceLabel: "Sanofi · bula, seção 12",
   },
 } as const;
 
-export type DemoInsulinProfile = (typeof DEMO_INSULIN_PROFILES)[keyof typeof DEMO_INSULIN_PROFILES];
+export interface DemoInsulinProfile {
+  name: string;
+  role: "rapid" | "basal";
+  onsetMinutes: number | null;
+  peakMinutes: number | null;
+  durationMinutes: number;
+  onsetText: string;
+  peakText: string;
+  durationText: string;
+  source: string;
+  sourceLabel: string;
+}
 
 export function demoInsulinProfile(
   item: InsulinCatalogItem | undefined,
@@ -41,7 +51,7 @@ export function demoInsulinProfile(
 const smooth = (x: number) => (1 - Math.cos(Math.PI * x)) / 2;
 
 /** Normalized illustration, NOT a pharmacokinetic model or an IOB calculation.
- * The Fiasp landmarks use the label's 0.2 U/kg study, not the recorded dose.
+ * The drawing landmarks are illustrative, not calculated from the recorded dose.
  * Lantus uses an illustrative flat plateau with drawn-in entry/exit ramps.
  */
 export function illustrativeAction(profile: DemoInsulinProfile, elapsedMinutes: number): number {
@@ -52,31 +62,48 @@ export function illustrativeAction(profile: DemoInsulinProfile, elapsedMinutes: 
   )
     return 0;
   if (profile.role === "basal") {
-    if (elapsedMinutes < 60) return smooth(elapsedMinutes / 60) * 100;
-    if (elapsedMinutes > 1260) return smooth((1440 - elapsedMinutes) / 180) * 100;
+    const entry = profile.onsetMinutes || 60;
+    const tail = Math.min(180, profile.durationMinutes / 8);
+    if (elapsedMinutes < entry) return smooth(elapsedMinutes / entry) * 100;
+    if (elapsedMinutes > profile.durationMinutes - tail)
+      return smooth((profile.durationMinutes - elapsedMinutes) / tail) * 100;
     return 100;
   }
-  if (elapsedMinutes <= profile.onsetMinutes) return 0;
-  if (elapsedMinutes <= profile.peakMinutes) {
-    return (
-      smooth(
-        (elapsedMinutes - profile.onsetMinutes) / (profile.peakMinutes - profile.onsetMinutes),
-      ) * 100
-    );
+  const onset = profile.onsetMinutes ?? 0;
+  const peak = profile.peakMinutes ?? onset;
+  if (elapsedMinutes <= onset) return 0;
+  if (elapsedMinutes <= peak) {
+    return smooth((elapsedMinutes - onset) / (peak - onset)) * 100;
   }
   return (
-    smooth(
-      (profile.durationMinutes - elapsedMinutes) / (profile.durationMinutes - profile.peakMinutes),
-    ) * 100
+    smooth((profile.durationMinutes - elapsedMinutes) / (profile.durationMinutes - peak)) * 100
   );
 }
 
 export function demoActionApplications(
   admins: InsulinAdministration[],
   catalog: InsulinCatalogItem[],
+  profiles?: InsulinActionProfile[],
+  allowReferenceFallback = profiles === undefined,
 ) {
   return admins.flatMap((a) => {
-    const profile = demoInsulinProfile(catalog.find((c) => c.id === a.insulin_id));
+    const item = catalog.find((c) => c.id === a.insulin_id);
+    const stored = profiles?.find((p) => p.insulin_id === a.insulin_id);
+    const parsed = visualProfileSchema.safeParse(stored?.visual_profile);
+    const profile: DemoInsulinProfile | null =
+      parsed.success && stored?.source_reference
+        ? {
+            ...parsed.data,
+            name: item?.brand_name ?? "Insulina",
+            onsetText: stored.onset_text ?? "Ilustrativo",
+            peakText: stored.peak_text ?? "Ilustrativo",
+            durationText: stored.effective_duration_text ?? "Ilustrativo",
+            source: stored.source_reference,
+            sourceLabel: "Fonte cadastrada",
+          }
+        : allowReferenceFallback
+          ? demoInsulinProfile(item)
+          : null;
     const start = new Date(a.administered_at).getTime();
     if (
       !profile ||

@@ -55,6 +55,12 @@ export interface DataStore {
   listCatalog(): Promise<InsulinCatalogItem[]>;
   listActionProfiles(): Promise<InsulinActionProfile[]>;
   addCatalogInsulin(input: InsulinCatalogInput): Promise<void>;
+  saveActionProfile?(insulinId: string, input: InsulinCatalogInput): Promise<void>;
+  confirmScheduledBasal?(
+    patientInsulinId: string,
+    scheduledTime: string,
+    administeredAt: string,
+  ): Promise<void>;
 
   listPatientInsulins(pid: string): Promise<PatientInsulin[]>;
   addPatientInsulin(
