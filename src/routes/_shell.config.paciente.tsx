@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, ClipboardList, Target, Phone } from "lucide-react";
+import { ClipboardList, Target, Phone } from "lucide-react";
 import {
   PageHeader,
   Card,
@@ -17,6 +17,8 @@ import { useSettings, useStoreMutation } from "@/hooks/use-data";
 import { usePatientStore } from "@/lib/app-context";
 import { settingsSchema, type SettingsInput } from "@/lib/validation";
 import type { CarbRatio } from "@/lib/domain/types";
+import { DosePeriodsEditor } from "@/components/glycare/DosePeriodsEditor";
+import { validateDosePeriods } from "@/lib/dose-periods";
 
 export const Route = createFileRoute("/_shell/config/paciente")({
   head: () => ({
@@ -58,7 +60,7 @@ function PatientSettings() {
         emergency_contact_phone: d.emergency_contact_phone ?? "",
         last_review_date: d.last_review_date ?? "",
       });
-      setRatios(d.carb_ratios);
+      setRatios(d.carb_ratios.map((p) => ({ ...p })));
     }
   }, [s.data, f, patient]);
 
@@ -71,8 +73,8 @@ function PatientSettings() {
     "Parâmetros salvos",
   );
 
-  if (s.isLoading || !f) return <LoadingState />;
   if (s.error) return <ErrorState error={s.error} />;
+  if (s.isLoading || !f) return <LoadingState />;
 
   const set =
     (k: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -80,16 +82,9 @@ function PatientSettings() {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const r = settingsSchema.safeParse(f);
-    const badRatio = ratios.some(
-      (x) =>
-        !/^\d{2}:\d{2}$/.test(x.from) ||
-        !/^\d{2}:\d{2}$/.test(x.to) ||
-        !x.ratio_text.trim() ||
-        x.ratio_text.length > 60,
-    );
+    const periodError = validateDosePeriods(ratios);
     if (!r.success) return setErrors(zodErrors(r.error));
-    if (badRatio)
-      return setErrors({ ratios: "Preencha horário inicial, final e a relação de cada faixa." });
+    if (periodError) return setErrors({ ratios: periodError });
     setErrors({});
     save.mutate({ data: r.data, ratios });
   }
@@ -99,7 +94,7 @@ function PatientSettings() {
       <PageHeader title="Paciente e parâmetros" />
       <Notice tone="info">
         {mode === "demo" ? (
-          "Parâmetros fictícios da simulação. Alvo e sensibilidade aceitam valores numéricos; relação aceita 1 UI : 12 g, por exemplo."
+          "Parâmetros fictícios. Sensibilidade em mg/dL por UI e carboidratos em g por UI são fatores diferentes. Alterações da demonstração ficam apenas nesta sessão."
         ) : (
           <>
             Estes dados são <strong>prescritos pela equipe de saúde</strong> e apenas armazenados. O
@@ -108,7 +103,7 @@ function PatientSettings() {
         )}
       </Notice>
       <form onSubmit={submit} className="space-y-4 settings-form" noValidate>
-        <fieldset disabled={readOnly} className="space-y-4">
+        <fieldset disabled={readOnly || save.isPending} className="space-y-4">
           <Card className="space-y-3">
             <CardTitle>Identificação</CardTitle>
             <Field id="nick" label="Nome ou apelido" error={errors["nickname"]}>
@@ -187,85 +182,23 @@ function PatientSettings() {
           </Card>
           <Card className="space-y-3">
             <CardTitle icon={<ClipboardList className="h-4 w-4" />}>Prescrição</CardTitle>
-            <Field
-              id="fs"
-              label="Fator de sensibilidade prescrito"
-              optional
-              error={errors["sensitivity_factor_text"]}
-            >
-              <Input
+            {(ratios.length === 0 || ratios.some((p) => p.sensitivity_text === undefined)) && (
+              <Field
                 id="fs"
-                className={inputCls}
-                value={f.sensitivity_factor_text}
-                onChange={set("sensitivity_factor_text")}
-              />
-            </Field>
-            <div>
-              <p className="text-sm font-semibold">Relação insulina/carboidrato por horário</p>
-              <ul className="mt-2 space-y-2">
-                {ratios.map((r, i) => (
-                  <li key={i} className="flex items-center gap-1.5">
-                    <Input
-                      type="time"
-                      aria-label="Início"
-                      className="h-11 w-[5.5rem] px-2"
-                      value={r.from}
-                      onChange={(e) =>
-                        setRatios(
-                          ratios.map((x, j) => (j === i ? { ...x, from: e.target.value } : x)),
-                        )
-                      }
-                    />
-                    <Input
-                      type="time"
-                      aria-label="Fim"
-                      className="h-11 w-[5.5rem] px-2"
-                      value={r.to}
-                      onChange={(e) =>
-                        setRatios(
-                          ratios.map((x, j) => (j === i ? { ...x, to: e.target.value } : x)),
-                        )
-                      }
-                    />
-                    <Input
-                      aria-label="Relação"
-                      placeholder="1 UI : __ g"
-                      className="h-11 flex-1"
-                      value={r.ratio_text}
-                      onChange={(e) =>
-                        setRatios(
-                          ratios.map((x, j) =>
-                            j === i ? { ...x, ratio_text: e.target.value } : x,
-                          ),
-                        )
-                      }
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setRatios(ratios.filter((_, j) => j !== i))}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-destructive"
-                      aria-label="Remover faixa"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {errors["ratios"] && (
-                <p role="alert" className="mt-1 text-sm text-destructive">
-                  {errors["ratios"]}
-                </p>
-              )}
-              <Button
-                type="button"
-                variant="soft"
-                size="sm"
-                className="mt-2"
-                onClick={() => setRatios([...ratios, { from: "", to: "", ratio_text: "" }])}
+                label="Sensibilidade padrão (mg/dL por UI)"
+                optional
+                hint="Para faixas antigas sem sensibilidade própria"
+                error={errors["sensitivity_factor_text"]}
               >
-                <Plus aria-hidden /> Adicionar faixa
-              </Button>
-            </div>
+                <Input
+                  id="fs"
+                  className={inputCls}
+                  value={f.sensitivity_factor_text}
+                  onChange={set("sensitivity_factor_text")}
+                />
+              </Field>
+            )}
+            <DosePeriodsEditor periods={ratios} onChange={setRatios} error={errors["ratios"]} />
             <Field id="ri" label="Insulina rápida" optional error={errors["rapid_insulin_text"]}>
               <Input
                 id="ri"

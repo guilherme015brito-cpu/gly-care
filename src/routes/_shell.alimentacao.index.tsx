@@ -1,6 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Search, Plus, Star, Trash2, History, Utensils, Info } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import {
+  Search,
+  Plus,
+  Star,
+  Trash2,
+  History,
+  Utensils,
+  Info,
+  Check,
+  Clock3,
+  Syringe,
+} from "lucide-react";
 import {
   PageHeader,
   CardTitle,
@@ -15,7 +26,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useFoods, useMeals, useStoreMutation } from "@/hooks/use-data";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  useFoods,
+  useMeals,
+  useCatalog,
+  usePatientInsulins,
+  useStoreMutation,
+} from "@/hooks/use-data";
+import { useDemoMealDose } from "@/hooks/use-demo-meal-dose";
 import { usePatientStore } from "@/lib/app-context";
 import { computeItem, sumItems } from "@/lib/nutrition";
 import { gramsSchema } from "@/lib/validation";
@@ -25,9 +50,11 @@ import {
   MEAL_LABEL,
   fmtNum,
   nowLocalInput,
+  fmtDateTime,
 } from "@/lib/domain/labels";
 import type { Food, MealType } from "@/lib/domain/types";
 import type { NewMeal } from "@/lib/data/store";
+import type { AdministrationInput } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_shell/alimentacao/")({
@@ -76,6 +103,18 @@ function FoodPage() {
   const [notes, setNotes] = useState("");
   const [fav, setFav] = useState(false);
   const [favName, setFavName] = useState("");
+  const catalog = useCatalog(mode === "demo");
+  const patientInsulins = usePatientInsulins(mode === "demo");
+  const [pending, setPending] = useState<{
+    meal: NewMeal;
+    dose: number;
+    glucose: number;
+    purpose: "meal" | "combined";
+  } | null>(null);
+  const [insulinId, setInsulinId] = useState("");
+  const [appliedAt, setAppliedAt] = useState(nowLocalInput());
+  const [registered, setRegistered] = useState<"performed" | "planned" | "meal" | null>(null);
+  const submitting = useRef(false);
   const toggleFav = useStoreMutation((s, _p, v: { id: string; fav: boolean }) =>
     s.toggleFoodFavorite(v.id, v.fav),
   );
@@ -84,6 +123,10 @@ function FoodPage() {
       throw new Error("Total de carboidratos incompleto. A refeição não foi registrada.");
     return s.addMeal(pid, m);
   }, "Refeição registrada");
+  const saveTogether = useStoreMutation(
+    (s, pid, v: { meal: NewMeal; administration: AdministrationInput }) =>
+      s.addMealWithAdministration(pid, v.meal, v.administration),
+  );
 
   const suggestions = useMemo(() => {
     const all = foods.data ?? [];
@@ -108,6 +151,18 @@ function FoodPage() {
   });
   const totals = sumItems(computed.filter((c) => c.item).map((c) => c.item!));
   const allValid = lines.length > 0 && computed.every((c) => c.valid);
+  const dose = useDemoMealDose(
+    totals.carbs_g,
+    eatenAt,
+    allValid && totals.carbs_g != null,
+    mealType,
+  );
+  const rapidOptions = (patientInsulins.data ?? [])
+    .filter((p) => p.active && p.role === "rapid")
+    .flatMap((p) => {
+      const c = catalog.data?.find((c) => c.id === p.insulin_id);
+      return c ? [c] : [];
+    });
   const favMeals = (meals.data ?? []).filter((m) => m.is_favorite);
 
   function addFood(f: Food) {
@@ -118,25 +173,85 @@ function FoodPage() {
     setQ("");
   }
 
+  function clearMeal() {
+    setLines([]);
+    setNotes("");
+    setFav(false);
+    setFavName("");
+    setEatenAt(nowLocalInput());
+    setPending(null);
+  }
+
   function submit() {
-    if (readOnly || !allValid || totals.carbs_g == null) return;
-    save.mutate(
+    if (
+      readOnly ||
+      !allValid ||
+      totals.carbs_g == null ||
+      submitting.current ||
+      pending ||
+      !Number.isFinite(new Date(eatenAt).getTime())
+    )
+      return;
+    const meal: NewMeal = {
+      meal_type: mealType,
+      eaten_at: new Date(eatenAt).toISOString(),
+      notes: notes.trim() || null,
+      is_favorite: fav,
+      favorite_name: fav ? favName.trim().slice(0, 80) || MEAL_LABEL[mealType] : null,
+      items: computed.map((c) => c.item!),
+      totals: { ...totals, carbs_g: totals.carbs_g },
+    };
+    if (mode === "demo" && dose.result && dose.reading && dose.result.rounded > 0) {
+      setInsulinId(rapidOptions[0]?.id ?? "");
+      setAppliedAt(nowLocalInput());
+      setPending({
+        meal,
+        dose: dose.result.rounded,
+        glucose: dose.reading.value_mgdl,
+        purpose: dose.result.correction > 0 ? "combined" : "meal",
+      });
+      return;
+    }
+    submitting.current = true;
+    save.mutate(meal, {
+      onSuccess: () => {
+        clearMeal();
+        setRegistered("meal");
+      },
+      onSettled: () => {
+        submitting.current = false;
+      },
+    });
+  }
+
+  function confirmMeal(applied: boolean) {
+    if (!pending || submitting.current || !rapidOptions.some((r) => r.id === insulinId)) return;
+    const actual = new Date(appliedAt).getTime();
+    if (applied && (!Number.isFinite(actual) || actual > Date.now() + 5 * 60000)) return;
+    submitting.current = true;
+    saveTogether.mutate(
       {
-        meal_type: mealType,
-        eaten_at: new Date(eatenAt).toISOString(),
-        notes: notes.trim() || null,
-        is_favorite: fav,
-        favorite_name: fav ? favName.trim().slice(0, 80) || MEAL_LABEL[mealType] : null,
-        items: computed.map((c) => c.item!),
-        totals: { ...totals, carbs_g: totals.carbs_g },
+        meal: pending.meal,
+        administration: {
+          insulin_id: insulinId,
+          dose: pending.dose,
+          administered_at: applied ? new Date(actual).toISOString() : pending.meal.eaten_at,
+          purpose: pending.purpose,
+          status: applied ? "performed" : "planned",
+          confirmed: applied,
+          glucose_before: pending.glucose,
+          injection_site: null,
+          recorded_by_name: "Demonstração",
+          notes: `Refeição: ${MEAL_LABEL[pending.meal.meal_type]} · ${fmtNum(pending.meal.totals.carbs_g)} g de carboidratos.`,
+        },
       },
       {
         onSuccess: () => {
-          setLines([]);
-          setNotes("");
-          setFav(false);
-          setFavName("");
-          setEatenAt(nowLocalInput());
+          clearMeal();
+          setRegistered(applied ? "performed" : "planned");
+        },
+        onSettled: () => {
+          submitting.current = false;
         },
       },
     );
@@ -155,6 +270,25 @@ function FoodPage() {
           </Button>
         }
       />
+      {registered && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-2 border-b py-3 text-sm"
+        >
+          <span>
+            {registered === "performed"
+              ? "Refeição e aplicação registradas."
+              : registered === "planned"
+                ? "Refeição registrada. A aplicação ficou pendente."
+                : "Refeição registrada sem aplicação."}
+          </span>
+          {registered !== "meal" && (
+            <Link to="/monitor/insulina" className="font-semibold text-primary">
+              {registered === "planned" ? "Ver aplicação pendente" : "Ver aplicação"}
+            </Link>
+          )}
+        </div>
+      )}
 
       <details className="text-xs text-muted-foreground">
         <summary className="mb-2 cursor-pointer font-semibold">
@@ -421,13 +555,7 @@ function FoodPage() {
                 " Total de carboidratos incompleto: falta o valor de ao menos um alimento. O registro da refeição está bloqueado."}
             </p>
           )}
-          {mode === "demo" && (
-            <DemoMealDoseCalculator
-              carbs={totals.carbs_g}
-              at={eatenAt}
-              complete={allValid && totals.carbs_g != null}
-            />
-          )}
+          {mode === "demo" && <DemoMealDoseCalculator dose={dose} />}
 
           {!readOnly && lines.length > 0 && (
             <div className="mt-4 space-y-3">
@@ -479,18 +607,119 @@ function FoodPage() {
               <Button
                 size="lg"
                 className="w-full"
-                disabled={!allValid || totals.carbs_g == null || save.isPending}
+                disabled={
+                  !allValid ||
+                  totals.carbs_g == null ||
+                  save.isPending ||
+                  saveTogether.isPending ||
+                  !Number.isFinite(new Date(eatenAt).getTime()) ||
+                  (mode === "demo" && !dose.result)
+                }
                 onClick={submit}
               >
                 {save.isPending ? "Salvando…" : "Registrar refeição"}
               </Button>
-              <p className="text-center text-xs text-muted-foreground">
-                O registro da refeição não registra uma aplicação de insulina.
-              </p>
             </div>
           )}
         </section>
       </div>
+      <Dialog
+        open={!!pending}
+        onOpenChange={(open) => {
+          if (!open && !submitting.current) setPending(null);
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto rounded-lg">
+          <DialogHeader>
+            <DialogTitle>A insulina foi aplicada?</DialogTitle>
+            <DialogDescription>
+              Registro da refeição e da aplicação na demonstração.
+            </DialogDescription>
+          </DialogHeader>
+          {pending && (
+            <>
+              <dl className="confirmation-summary">
+                <div>
+                  <dt>Refeição</dt>
+                  <dd>
+                    {MEAL_LABEL[pending.meal.meal_type]} · {fmtNum(pending.meal.totals.carbs_g)} g
+                    carb
+                  </dd>
+                </div>
+                <div>
+                  <dt>Glicemia do monitor</dt>
+                  <dd>{fmtNum(pending.glucose)} mg/dL</dd>
+                </div>
+                <div>
+                  <dt>Dose calculada</dt>
+                  <dd className="text-xl text-primary">{fmtNum(pending.dose, 2)} UI</dd>
+                </div>
+              </dl>
+              <Field id="meal-insulin" label="Insulina rápida">
+                <select
+                  id="meal-insulin"
+                  value={insulinId}
+                  className={selectCls}
+                  onChange={(e) => setInsulinId(e.target.value)}
+                >
+                  {!rapidOptions.length && <option value="">Nenhuma insulina rápida em uso</option>}
+                  {rapidOptions.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.brand_name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field id="meal-applied-at" label="Horário efetivo da aplicação">
+                <Input
+                  id="meal-applied-at"
+                  type="datetime-local"
+                  className={inputCls}
+                  value={appliedAt}
+                  onChange={(e) => setAppliedAt(e.target.value)}
+                />
+              </Field>
+              <p className="text-xs text-muted-foreground">
+                Refeição em {fmtDateTime(pending.meal.eaten_at)}. A opção “Não” mantém a aplicação
+                pendente no histórico.
+              </p>
+              {saveTogether.error && <ErrorState error={saveTogether.error} />}
+              {!rapidOptions.length && (
+                <Link to="/config/insulinas" className="text-sm font-semibold text-primary">
+                  Cadastrar uma insulina rápida
+                </Link>
+              )}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button
+                  variant="outline"
+                  disabled={saveTogether.isPending || !insulinId}
+                  onClick={() => confirmMeal(false)}
+                >
+                  <Clock3 aria-hidden /> Não, registrar pendente
+                </Button>
+                <Button
+                  disabled={
+                    saveTogether.isPending ||
+                    !insulinId ||
+                    !Number.isFinite(new Date(appliedAt).getTime()) ||
+                    new Date(appliedAt).getTime() > Date.now() + 5 * 60000
+                  }
+                  onClick={() => confirmMeal(true)}
+                >
+                  <Check aria-hidden /> Sim, registrar aplicação
+                </Button>
+              </div>
+              <Button
+                variant="ghost"
+                disabled={saveTogether.isPending}
+                onClick={() => setPending(null)}
+              >
+                <Syringe aria-hidden /> Voltar à refeição
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -884,6 +884,109 @@ a:focus-visible {
     height: 210px;
   }
 }
+.confirmation-summary {
+  display: grid;
+  gap: 12px;
+  border-block: 1px solid var(--border);
+  padding-block: 16px;
+}
+.confirmation-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.confirmation-summary dt {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.confirmation-summary dd {
+  font-weight: 650;
+}
+.insulin-action-section {
+  border-block: 1px solid var(--border);
+  padding-block: 24px;
+  margin-bottom: 28px;
+}
+.insulin-action-layout {
+  display: grid;
+  gap: 24px;
+}
+.insulin-action-canvas {
+  height: 280px;
+  width: 100%;
+  min-width: 0;
+}
+.insulin-action-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.insulin-action-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.insulin-action-legend i {
+  width: 12px;
+  height: 3px;
+}
+.insulin-action-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.insulin-action-list > li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.insulin-action-list > li:first-child {
+  padding-top: 0;
+}
+.insulin-action-list p {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.insulin-chart-tooltip {
+  max-width: 250px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  padding: 10px 12px;
+  font-size: 11px;
+}
+.insulin-chart-tooltip p {
+  margin-top: 4px;
+}
+.insulin-profile-references {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  line-height: 1.6;
+}
+@media (min-width: 1100px) {
+  .insulin-action-layout {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+  .insulin-profile-references {
+    grid-template-columns: 1fr 1fr;
+  }
+  .insulin-profile-references > p {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 480px) {
+  .dose-simulation select {
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+  .insulin-action-canvas {
+    height: 230px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

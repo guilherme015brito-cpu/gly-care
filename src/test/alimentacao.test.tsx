@@ -7,6 +7,9 @@ import { getDemoStore, resetDemoStore } from "@/lib/data/demo-store";
 import type { DataStore } from "@/lib/data/store";
 import { useFoods, useMeals } from "@/hooks/use-data";
 import { Route } from "@/routes/_shell.alimentacao.index";
+import { Route as HistoryRoute } from "@/routes/_shell.monitor.insulina.index";
+import { nowLocalInput } from "@/lib/domain/labels";
+import { demoActionApplications } from "@/lib/insulin/demo-action";
 
 vi.mock("@/lib/app-context", () => ({ usePatientStore: vi.fn() }));
 vi.mock("@tanstack/react-router", () => ({
@@ -16,6 +19,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 const FoodPage = Route.options.component as ComponentType;
+const AdminHistory = HistoryRoute.options.component as ComponentType;
 let client: QueryClient;
 let store: DataStore;
 const wrapper = ({ children }: { children: ReactNode }) => (
@@ -90,6 +94,13 @@ describe("Alimentação with local TACO", () => {
   it("searches multiple foods, calculates portions and saves a demo meal in memory", async () => {
     setMode("demo");
     await store.listPatients();
+    const list = store.listGlucose.bind(store);
+    vi.spyOn(store, "listGlucose").mockImplementation(async (pid, since) => {
+      const readings = await list(pid, since);
+      return readings.map((r, i) =>
+        i === readings.length - 1 ? { ...r, value: 180, value_mgdl: 180 } : r,
+      );
+    });
     render(<FoodPage />, { wrapper });
     expect(screen.getByText("fictícios")).toBeInTheDocument();
     for (const query of ["arroz", "feijão", "frango"]) {
@@ -109,24 +120,105 @@ describe("Alimentação with local TACO", () => {
       -1,
     )!;
     await waitFor(() =>
-      expect(screen.getByLabelText("Glicemia fictícia (mg/dL)")).toHaveValue(
-        String(latest.value_mgdl),
-      ),
+      expect(screen.getByLabelText("Glicemia (mg/dL)")).toHaveValue(String(latest.value_mgdl)),
     );
-    fireEvent.change(screen.getByLabelText("Glicemia fictícia (mg/dL)"), {
-      target: { value: "180" },
-    });
+    expect(screen.getByLabelText("Glicemia (mg/dL)")).toHaveAttribute("readonly");
     expect(await screen.findByText("Refeição: 39 ÷ 12")).toBeInTheDocument();
     expect(screen.getByText("5,5")).toBeInTheDocument();
     const before = (await store.listMeals("demo-patient")).length;
     fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    expect(
+      await screen.findByRole("dialog", { name: "A insulina foi aplicada?" }),
+    ).toBeInTheDocument();
+    expect(await store.listMeals("demo-patient")).toHaveLength(before);
+    fireEvent.click(screen.getByRole("button", { name: "Sim, registrar aplicação" }));
     await waitFor(async () =>
       expect(await store.listMeals("demo-patient")).toHaveLength(before + 1),
     );
-    const meal = (await store.listMeals("demo-patient"))[0]!;
+    const meal = (await store.listMeals("demo-patient")).find((m) => m.notes === null)!;
     expect(meal.total_carbs_g).toBe(39);
     expect(meal.items).toHaveLength(3);
     expect(meal.items.every((item) => item.food_source === "TACO")).toBe(true);
+    const applied = (await store.listAdministrations("demo-patient")).find(
+      (a) => a.meal_id === meal.id,
+    )!;
+    expect(applied.dose_units).toBe(5.5);
+    expect(applied.status).toBe("performed");
+    expect(applied.confirmed_by_user).toBe(true);
+    expect(applied.glucose_before_mgdl).toBe(180);
+    expect((await store.listCatalog()).find((c) => c.id === applied.insulin_id)?.brand_name).toBe(
+      "Fiasp",
+    );
+  });
+
+  it("keeps a declined application pending and confirms it later once at its actual time", async () => {
+    setMode("demo");
+    await store.listPatients();
+    render(<FoodPage />, { wrapper });
+    await add("Arroz, tipo 1, cozido", "100");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Registrar refeição" })).toBeEnabled(),
+    );
+    const before = (await store.listAdministrations("demo-patient")).length;
+    fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Não, registrar pendente" }));
+    await screen.findByText("Refeição registrada. A aplicação ficou pendente.");
+    const pending = (await store.listAdministrations("demo-patient")).find(
+      (a) => a.status === "planned",
+    )!;
+    expect(pending.confirmed_by_user).toBe(false);
+    const catalog = await store.listCatalog();
+    expect(
+      demoActionApplications(await store.listAdministrations("demo-patient"), catalog).some(
+        (a) => a.administration.id === pending.id,
+      ),
+    ).toBe(false);
+    cleanup();
+    render(<AdminHistory />, { wrapper });
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar aplicação" }));
+    const actual = nowLocalInput(new Date(Date.now() - 60000));
+    fireEvent.change(screen.getByLabelText("Horário efetivo da aplicação"), {
+      target: { value: actual },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sim, aplicação realizada" }));
+    await waitFor(async () =>
+      expect(
+        (await store.listAdministrations("demo-patient")).find((a) => a.id === pending.id)?.status,
+      ).toBe("performed"),
+    );
+    const admins = await store.listAdministrations("demo-patient");
+    expect(admins).toHaveLength(before + 1);
+    expect(admins.find((a) => a.id === pending.id)?.administered_at).toBe(
+      new Date(actual).toISOString(),
+    );
+    expect(
+      demoActionApplications(admins, catalog).some((a) => a.administration.id === pending.id),
+    ).toBe(true);
+    await store.markAdministrationPerformed(pending.id);
+    expect(
+      (await store.listAdministrations("demo-patient")).find((a) => a.id === pending.id)
+        ?.administered_at,
+    ).toBe(new Date(actual).toISOString());
+  });
+
+  it("cancels confirmation without saving either record and preserves the composed meal", async () => {
+    setMode("demo");
+    await store.listPatients();
+    const beforeMeals = (await store.listMeals("demo-patient")).length;
+    const beforeAdmins = (await store.listAdministrations("demo-patient")).length;
+    render(<FoodPage />, { wrapper });
+    await add("Arroz, tipo 1, cozido", "100");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Registrar refeição" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Voltar à refeição" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await store.listMeals("demo-patient")).toHaveLength(beforeMeals);
+    expect(await store.listAdministrations("demo-patient")).toHaveLength(beforeAdmins);
+    expect(screen.getByLabelText("Quantidade em gramas de Arroz, tipo 1, cozido")).toHaveValue(
+      "100",
+    );
   });
 
   it("finds TACO foods with or without accent marks", async () => {
@@ -145,6 +237,74 @@ describe("Alimentação with local TACO", () => {
         await screen.findByRole("button", { name: `Adicionar ${expected}` }),
       ).toBeInTheDocument();
     }
+  });
+
+  it("saves the selected rounding and updates automatically from a new monitor reading", async () => {
+    setMode("demo");
+    await store.listPatients();
+    render(<FoodPage />, { wrapper });
+    await add("Arroz, tipo 1, cozido", "100");
+    fireEvent.change(screen.getByLabelText("Horário"), { target: { value: "2026-10-10T12:00" } });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Registrar refeição" })).toBeEnabled(),
+    );
+    const readings = await store.listGlucose("demo-patient", new Date(Date.now() - 86400000));
+    const latest = readings.at(-1)!;
+    client.setQueryData(["demo", "demo-patient", "glucose", 24], [{ ...latest, value_mgdl: 180 }]);
+    await waitFor(() => expect(screen.getByLabelText("Glicemia (mg/dL)")).toHaveValue("180"));
+    client.setQueryData(["demo", "demo-patient", "glucose", 24], [{ ...latest, value_mgdl: 210 }]);
+    await waitFor(() => expect(screen.getByLabelText("Glicemia (mg/dL)")).toHaveValue("210"));
+    fireEvent.change(screen.getByLabelText("Arredondamento (UI)"), { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    const button = await screen.findByRole("button", { name: "Sim, registrar aplicação" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await screen.findByText("Refeição e aplicação registradas.");
+    const meal = (await store.listMeals("demo-patient")).find((m) => m.total_carbs_g === 28.1)!;
+    const linked = (await store.listAdministrations("demo-patient")).filter(
+      (a) => a.meal_id === meal.id,
+    );
+    expect(linked).toHaveLength(1);
+    expect(linked[0]?.dose_units).toBe(5);
+    expect(linked[0]?.glucose_before_mgdl).toBe(210);
+  });
+
+  it("retains the composed meal and confirmation when saving fails", async () => {
+    setMode("demo");
+    await store.listPatients();
+    vi.spyOn(store, "addMealWithAdministration").mockRejectedValue(
+      new Error("Falha de teste: nada foi registrado"),
+    );
+    const before = (await store.listMeals("demo-patient")).length;
+    render(<FoodPage />, { wrapper });
+    await add("Arroz, tipo 1, cozido", "100");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Registrar refeição" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Sim, registrar aplicação" }));
+    await screen.findByText("Falha de teste: nada foi registrado");
+    expect(screen.getByRole("dialog", { name: "A insulina foi aplicada?" })).toBeInTheDocument();
+    expect(await store.listMeals("demo-patient")).toHaveLength(before);
+  });
+
+  it("does not create a zero-dose administration", async () => {
+    setMode("demo");
+    await store.listPatients();
+    const list = store.listGlucose.bind(store);
+    vi.spyOn(store, "listGlucose").mockImplementation(async (pid, since) => {
+      const readings = await list(pid, since);
+      return readings.map((r, i) => (i === readings.length - 1 ? { ...r, value_mgdl: 100 } : r));
+    });
+    const before = (await store.listAdministrations("demo-patient")).length;
+    render(<FoodPage />, { wrapper });
+    await add("Frango, peito, sem pele, cozido", "100");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Registrar refeição" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    await screen.findByText("Refeição registrada sem aplicação.");
+    expect(await store.listAdministrations("demo-patient")).toHaveLength(before);
   });
 
   it("shows missing carbs as a dash and blocks saving an incomplete demo meal", async () => {

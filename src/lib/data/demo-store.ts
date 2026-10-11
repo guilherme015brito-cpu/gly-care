@@ -19,6 +19,8 @@ import { MockGlucoseProvider, filterNewReadings, normalize } from "../glucose/pr
 import type { DataStore } from "./store";
 import { tacoFoods } from "../taco-foods";
 import { computeItem, sumItems } from "../nutrition";
+import { DEMO_INSULIN_PROFILES } from "../insulin/demo-action";
+import { validateDosePeriods } from "../dose-periods";
 
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -62,6 +64,9 @@ function seedFoods(): Food[] {
 }
 
 class DemoStore implements DataStore {
+  async libre(): Promise<never> {
+    throw new Error("Conexões reais não estão disponíveis na demonstração.");
+  }
   readonly mode = "demo" as const;
   private glucose: GlucoseReading[] = [];
   private catalog: InsulinCatalogItem[] = [];
@@ -76,11 +81,38 @@ class DemoStore implements DataStore {
     ...DEFAULT_SETTINGS,
     target_glucose_text: "120",
     sensitivity_factor_text: "30",
+    rapid_insulin_text: "Fiasp",
+    basal_insulin_text: "Lantus · 18 UI às 07:00 e 12 UI às 22:00 (cenário fictício)",
+    administration_times: "Fiasp nas refeições; Lantus às 07:00 e 22:00 (demonstração)",
     carb_ratios: [
-      { from: "00:00", to: "11:00", ratio_text: "1 UI : 10 g" },
-      { from: "11:00", to: "15:00", ratio_text: "1 UI : 12 g" },
-      { from: "15:00", to: "18:00", ratio_text: "1 UI : 15 g" },
-      { from: "18:00", to: "00:00", ratio_text: "1 UI : 12 g" },
+      {
+        meal_type: "breakfast",
+        from: "00:00",
+        to: "11:00",
+        sensitivity_text: "20",
+        ratio_text: "1 UI : 10 g",
+      },
+      {
+        meal_type: "lunch",
+        from: "11:00",
+        to: "15:00",
+        sensitivity_text: "30",
+        ratio_text: "1 UI : 12 g",
+      },
+      {
+        meal_type: "snack",
+        from: "15:00",
+        to: "18:00",
+        sensitivity_text: "30",
+        ratio_text: "1 UI : 10 g",
+      },
+      {
+        meal_type: "dinner",
+        from: "18:00",
+        to: "00:00",
+        sensitivity_text: "40",
+        ratio_text: "1 UI : 18 g",
+      },
     ],
   };
   private patient: Patient = {
@@ -90,54 +122,59 @@ class DemoStore implements DataStore {
     role: "caregiver",
   };
   private audit: AuditEntry[] = [];
-  private seeded = false;
+  private seedPromise: Promise<void> | null = null;
 
-  private async seed() {
-    if (this.seeded) return;
-    this.seeded = true;
+  private seed() {
+    return (this.seedPromise ??= this.seedData());
+  }
+
+  private async seedData() {
     const mock = new MockGlucoseProvider();
     const incoming = await mock.fetchSince(new Date(Date.now() - 7 * 86400000));
     this.glucose = incoming.map((r) => normalize(r, DEMO_PID, uid()));
     const rapid: InsulinCatalogItem = {
       id: uid(),
-      brand_name: "Insulina rápida EXEMPLO (fictícia)",
-      active_ingredient: null,
-      manufacturer: null,
-      pharmacological_class: "Análogo de ação rápida (exemplo)",
+      brand_name: "Fiasp",
+      active_ingredient: "Insulina asparte",
+      manufacturer: "Novo Nordisk",
+      pharmacological_class: "Análogo de ação rápida",
       concentration: "U-100",
       route: "Subcutânea",
       presentation: null,
-      is_fictional: true,
+      is_fictional: false,
     };
     const basal: InsulinCatalogItem = {
       id: uid(),
-      brand_name: "Insulina basal EXEMPLO (fictícia)",
-      active_ingredient: null,
-      manufacturer: null,
-      pharmacological_class: "Análogo de ação longa (exemplo)",
+      brand_name: "Lantus",
+      active_ingredient: "Insulina glargina",
+      manufacturer: "Sanofi",
+      pharmacological_class: "Insulina basal de ação prolongada",
       concentration: "U-100",
       route: "Subcutânea",
       presentation: null,
-      is_fictional: true,
+      is_fictional: false,
     };
     this.catalog = [rapid, basal];
-    this.profiles = [rapid, basal].map((i) => ({
-      id: uid(),
-      insulin_id: i.id,
-      onset_text: null,
-      peak_text: null,
-      effective_duration_text: null,
-      max_duration_text: null,
-      source_reference: null,
-      source_review_date: null,
-      validation_status: "not_validated",
-    }));
+    this.profiles = [rapid, basal].map((i, index) => {
+      const p = index === 0 ? DEMO_INSULIN_PROFILES.fiasp : DEMO_INSULIN_PROFILES.lantus;
+      return {
+        id: uid(),
+        insulin_id: i.id,
+        onset_text: p.onsetText,
+        peak_text: p.peakText,
+        effective_duration_text: p.durationText,
+        max_duration_text: null,
+        source_reference: p.source,
+        source_review_date: "2026-10-10",
+        validation_status: "under_review" as const,
+      };
+    });
     const piR: PatientInsulin = {
       id: uid(),
       patient_id: DEMO_PID,
       insulin_id: rapid.id,
       role: "rapid",
-      prescribed_dose_text: "Conforme prescrição (exemplo)",
+      prescribed_dose_text: "Calculadora da refeição (demonstração)",
       prescribed_times: "Refeições",
       notes: null,
       active: true,
@@ -149,9 +186,10 @@ class DemoStore implements DataStore {
       patient_id: DEMO_PID,
       insulin_id: basal.id,
       role: "basal",
-      prescribed_dose_text: "Conforme prescrição (exemplo)",
-      prescribed_times: "22:00",
-      notes: null,
+      prescribed_dose_text: "18 UI às 07:00 e 12 UI às 22:00",
+      prescribed_times: "07:00, 22:00",
+      notes:
+        "Esquema fictício solicitado para demonstração; não é recomendação de esquema terapêutico.",
       active: true,
       started_on: null,
       ended_on: null,
@@ -181,11 +219,20 @@ class DemoStore implements DataStore {
       is_superseded: false,
       created_at: at,
     });
-    this.admins = [
-      mk(rapid, 3, h(2.5), "meal"),
-      mk(basal, 10, h(14), "basal"),
-      mk(rapid, 2.5, h(7), "meal"),
-    ];
+    const basalSchedule: InsulinAdministration[] = [];
+    for (const daysAgo of [1, 0]) {
+      for (const [hour, dose] of [
+        [7, 18],
+        [22, 12],
+      ] as const) {
+        const at = new Date();
+        at.setDate(at.getDate() - daysAgo);
+        at.setHours(hour, 0, 0, 0);
+        if (at.getTime() <= Date.now())
+          basalSchedule.push(mk(basal, dose, at.toISOString(), "basal"));
+      }
+    }
+    this.admins = [mk(rapid, 3, h(2.5), "meal"), ...basalSchedule, mk(rapid, 2.5, h(7), "meal")];
     this.ketones = [
       {
         id: uid(),
@@ -267,6 +314,8 @@ class DemoStore implements DataStore {
       .sort((a, b) => a.measured_at.localeCompare(b.measured_at));
   }
   async ingestGlucose(pid: string, readings: Parameters<DataStore["ingestGlucose"]>[1]) {
+    if (readings.some((r) => r.source === "external"))
+      throw new Error("Leituras externas não podem entrar na demonstração.");
     await this.seed();
     const fresh = filterNewReadings(this.glucose, readings);
     for (const r of fresh) {
@@ -340,6 +389,33 @@ class DemoStore implements DataStore {
     i: Parameters<DataStore["addAdministration"]>[1],
     supersedesId?: string,
   ) {
+    this.insertAdministration(pid, i, supersedesId);
+  }
+
+  private insertAdministration(
+    pid: string,
+    i: Parameters<DataStore["addAdministration"]>[1],
+    supersedesId?: string,
+  ) {
+    const row = this.administrationRow(pid, i, supersedesId);
+    if (supersedesId) {
+      const old = this.admins.find((a) => a.id === supersedesId);
+      if (old) {
+        const prev = { ...old };
+        old.is_superseded = true;
+        this.log("insulin_administrations", old.id, "UPDATE", prev, old);
+      }
+    }
+    this.admins.push(row);
+    this.log("insulin_administrations", row.id, "INSERT", null, row);
+  }
+
+  private administrationRow(
+    pid: string,
+    i: Parameters<DataStore["addAdministration"]>[1],
+    supersedesId?: string,
+    mealId?: string,
+  ): InsulinAdministration {
     const ins = this.patientInsulins.find((p) => p.insulin_id === i.insulin_id && p.active);
     const row: InsulinAdministration = {
       id: uid(),
@@ -358,26 +434,22 @@ class DemoStore implements DataStore {
       supersedes_id: supersedesId ?? null,
       is_superseded: false,
       created_at: new Date().toISOString(),
+      ...(mealId ? { meal_id: mealId } : {}),
     };
-    if (supersedesId) {
-      const old = this.admins.find((a) => a.id === supersedesId);
-      if (old) {
-        const prev = { ...old };
-        old.is_superseded = true;
-        this.log("insulin_administrations", old.id, "UPDATE", prev, old);
-      }
-    }
-    this.admins.push(row);
-    this.log("insulin_administrations", row.id, "INSERT", null, row);
+    return row;
   }
-  async markAdministrationPerformed(id: string) {
+  async markAdministrationPerformed(id: string, administeredAt = new Date().toISOString()) {
     const a = this.admins.find((x) => x.id === id);
-    if (a) {
-      const prev = { ...a };
-      a.status = "performed";
-      a.confirmed_by_user = true;
-      this.log("insulin_administrations", id, "UPDATE", prev, a);
-    }
+    if (!a || a.is_superseded) throw new Error("Registro não disponível para confirmação.");
+    if (a.status === "performed") return;
+    const at = new Date(administeredAt).getTime();
+    if (!Number.isFinite(at) || at > Date.now() + 5 * 60000)
+      throw new Error("Informe um horário efetivo válido, não futuro.");
+    const prev = { ...a };
+    a.status = "performed";
+    a.confirmed_by_user = true;
+    a.administered_at = new Date(at).toISOString();
+    this.log("insulin_administrations", id, "UPDATE", prev, a);
   }
 
   async listKetones(_pid: string, limit = 50) {
@@ -431,6 +503,16 @@ class DemoStore implements DataStore {
     return [...this.meals].sort((a, b) => b.eaten_at.localeCompare(a.eaten_at)).slice(0, limit);
   }
   async addMeal(pid: string, m: Parameters<DataStore["addMeal"]>[1]) {
+    this.insertMeal(pid, m);
+  }
+
+  private insertMeal(pid: string, m: Parameters<DataStore["addMeal"]>[1]) {
+    const row = this.mealRow(pid, m);
+    this.meals.push(row);
+    this.log("meal_entries", row.id, "INSERT", null, row);
+  }
+
+  private mealRow(pid: string, m: Parameters<DataStore["addMeal"]>[1]): MealEntry {
     const row: MealEntry = {
       id: uid(),
       patient_id: pid,
@@ -446,14 +528,66 @@ class DemoStore implements DataStore {
       favorite_name: m.favorite_name,
       items: m.items.map((it) => ({ ...it, id: uid() })),
     };
+    return row;
+  }
+
+  async addMealWithAdministration(
+    pid: string,
+    meal: Parameters<DataStore["addMeal"]>[1],
+    administration: Parameters<DataStore["addAdministration"]>[1],
+  ) {
+    await this.seed();
+    const rapid = this.patientInsulins.find(
+      (p) => p.active && p.role === "rapid" && p.insulin_id === administration.insulin_id,
+    );
+    const at = new Date(administration.administered_at).getTime();
+    if (
+      pid !== this.patient.id ||
+      !rapid ||
+      !Number.isFinite(administration.dose) ||
+      administration.dose <= 0 ||
+      !Number.isFinite(at) ||
+      !Number.isFinite(new Date(meal.eaten_at).getTime()) ||
+      !meal.items.length ||
+      meal.items.some(
+        (i) =>
+          i.carbs_g == null ||
+          !Number.isFinite(i.carbs_g) ||
+          i.carbs_g < 0 ||
+          !Number.isFinite(i.grams) ||
+          i.grams <= 0,
+      ) ||
+      !Number.isFinite(meal.totals.carbs_g) ||
+      meal.totals.carbs_g < 0 ||
+      (administration.glucose_before != null &&
+        (!Number.isFinite(administration.glucose_before) || administration.glucose_before < 0)) ||
+      (administration.status === "performed" &&
+        (!administration.confirmed || at > Date.now() + 5 * 60000))
+    ) {
+      throw new Error(
+        "Revise a refeição, a insulina rápida, a dose e o horário. Nada foi registrado.",
+      );
+    }
+    // Prepare both complete records before committing either collection or its audit entry.
+    const preparedMeal = { ...meal, eaten_at: new Date(meal.eaten_at).toISOString() };
+    const preparedAdministration = {
+      ...administration,
+      administered_at: new Date(at).toISOString(),
+    };
+    const row = this.mealRow(pid, preparedMeal);
+    const admin = this.administrationRow(pid, preparedAdministration, undefined, row.id);
     this.meals.push(row);
+    this.admins.push(admin);
     this.log("meal_entries", row.id, "INSERT", null, row);
+    this.log("insulin_administrations", admin.id, "INSERT", null, admin);
   }
 
   async getSettings() {
     return this.settings;
   }
   async saveSettings(pid: string, s: Parameters<DataStore["saveSettings"]>[1]) {
+    const error = validateDosePeriods(s.carb_ratios);
+    if (error) throw new Error(error);
     const old = this.settings;
     this.settings = { ...s, patient_id: pid };
     this.log("clinical_settings", pid, "UPDATE", old, this.settings);

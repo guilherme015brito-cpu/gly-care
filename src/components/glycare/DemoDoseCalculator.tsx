@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Calculator, RotateCcw, Settings2 } from "lucide-react";
-import { useGlucose, useSettings } from "@/hooks/use-data";
+import { useSettings } from "@/hooks/use-data";
+import type { DemoMealDoseState } from "@/hooks/use-demo-meal-dose";
 import { usePatientStore } from "@/lib/app-context";
 import {
   calculateDemoDose,
@@ -11,7 +12,7 @@ import {
   demoCorrectionParameters,
 } from "@/lib/demo-dose";
 import type { GlucoseReading } from "@/lib/domain/types";
-import { fmtDateTime, fmtNum } from "@/lib/domain/labels";
+import { fmtDateTime, fmtNum, MEAL_LABEL } from "@/lib/domain/labels";
 import { Input } from "@/components/ui/input";
 import { Field, inputCls } from "./form";
 import { ErrorState, LoadingState } from "./ui-bits";
@@ -23,12 +24,20 @@ interface Props {
   complete?: boolean;
   reading?: GlucoseReading | undefined;
   followMonitor?: boolean;
+  mealDose?: DemoMealDoseState;
 }
 
-export function DemoMealDoseCalculator(props: Pick<Props, "carbs" | "at" | "complete">) {
-  const glucose = useGlucose(24);
-  const reading = glucose.data?.filter((r) => r.quality !== "invalid").at(-1);
-  return <DemoDoseCalculator {...props} reading={reading} followMonitor />;
+export function DemoMealDoseCalculator({ dose }: { dose: DemoMealDoseState }) {
+  return (
+    <DemoDoseCalculator
+      carbs={dose.carbs}
+      at={dose.at}
+      complete={dose.complete}
+      reading={dose.reading}
+      followMonitor
+      mealDose={dose}
+    />
+  );
 }
 
 export function DemoDoseCalculator({
@@ -38,23 +47,29 @@ export function DemoDoseCalculator({
   complete = true,
   reading,
   followMonitor = false,
+  mealDose,
 }: Props) {
   const { mode } = usePatientStore();
   const settings = useSettings();
   const [glucoseOverride, setGlucoseOverride] = useState<string | null>(null);
-  const [increment, setIncrement] = useState(0.5);
-  if (mode !== "demo") return null;
+  const [localIncrement, setLocalIncrement] = useState(0.5);
+  const increment = mealDose?.increment ?? localIncrement;
+  const setIncrement = mealDose?.setIncrement ?? setLocalIncrement;
+  if (mode !== "demo" || reading?.source === "external") return null;
   const correctionOnly = kind === "correction";
   const glucose =
-    glucoseOverride ??
+    (mealDose ? null : glucoseOverride) ??
     (correctionOnly || followMonitor ? (reading ? String(reading.value_mgdl) : "") : "180");
-  const parameters = settings.data
-    ? correctionOnly
-      ? demoCorrectionParameters(settings.data)
-      : demoParameters(settings.data, new Date(at))
-    : null;
-  const result =
-    complete && parameters && !("error" in parameters)
+  const parameters = mealDose
+    ? mealDose.parameters
+    : settings.data
+      ? correctionOnly
+        ? demoCorrectionParameters(settings.data, new Date(at))
+        : demoParameters(settings.data, new Date(at))
+      : null;
+  const result = mealDose
+    ? mealDose.result
+    : complete && parameters && !("error" in parameters)
       ? parameters.kind === "meal"
         ? calculateDemoDose(
             carbs,
@@ -94,8 +109,8 @@ export function DemoDoseCalculator({
         Simulação com dados fictícios ·{" "}
         {correctionOnly ? "correção de glicemia" : "refeição + correção de glicemia"}
       </p>
-      {settings.error ? (
-        <ErrorState error={settings.error} />
+      {settings.error || mealDose?.error ? (
+        <ErrorState error={settings.error ?? mealDose?.error} />
       ) : !parameters ? (
         <LoadingState />
       ) : "error" in parameters ? (
@@ -104,17 +119,27 @@ export function DemoDoseCalculator({
         </p>
       ) : (
         <div className={correctionOnly ? "correction-layout" : undefined}>
+          {parameters.band && (
+            <p className="col-span-full mb-3 text-xs text-muted-foreground">
+              {parameters.band.meal_type
+                ? MEAL_LABEL[parameters.band.meal_type]
+                : "Faixa de horário"}
+              {" · "}
+              {parameters.band.from}–{parameters.band.to}
+            </p>
+          )}
           <div>
             <div className="grid grid-cols-2 gap-3">
               <Field
                 id={id + "-glucose"}
-                label={correctionOnly ? "Glicemia simulada (mg/dL)" : "Glicemia fictícia (mg/dL)"}
+                label={correctionOnly ? "Glicemia simulada (mg/dL)" : "Glicemia (mg/dL)"}
               >
                 <Input
                   id={id + "-glucose"}
                   inputMode="decimal"
                   className={inputCls}
                   value={glucose}
+                  readOnly={!!mealDose}
                   onChange={(e) => setGlucoseOverride(e.target.value)}
                 />
               </Field>
@@ -135,19 +160,23 @@ export function DemoDoseCalculator({
             {(correctionOnly || followMonitor) && (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
-                  {glucoseOverride === null && reading
+                  {(mealDose || glucoseOverride === null) && reading
                     ? "Leitura do monitor · " + fmtDateTime(reading.measured_at)
-                    : "Cenário demonstrativo editado"}
+                    : !reading && glucoseOverride === null
+                      ? "Sem leitura disponível no monitor"
+                      : "Cenário demonstrativo editado"}
                 </p>
-                <button
-                  type="button"
-                  className="flex items-center gap-1 text-xs font-semibold text-primary disabled:opacity-50"
-                  disabled={!reading}
-                  onClick={() => setGlucoseOverride(null)}
-                >
-                  <RotateCcw size={12} aria-hidden />
-                  Usar leitura do monitor
-                </button>
+                {!mealDose && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-xs font-semibold text-primary disabled:opacity-50"
+                    disabled={!reading}
+                    onClick={() => setGlucoseOverride(null)}
+                  >
+                    <RotateCcw size={12} aria-hidden />
+                    Usar leitura do monitor
+                  </button>
+                )}
               </div>
             )}
           </div>

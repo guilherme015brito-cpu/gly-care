@@ -1,5 +1,15 @@
 # Gly care
 
+## Fluxo integrado da demonstração
+
+- A glicemia da alimentação acompanha a última leitura do monitor; o campo não é editável nessa tela.
+- A composição original TACO e a relação por horário definem a parcela da refeição; alvo e sensibilidade definem a correção. Arredondamento é selecionável.
+- "Registrar refeição" abre a confirmação "A insulina foi aplicada?". Sim registra refeição e aplicação; Não registra a refeição e uma aplicação pendente. Cancelar não salva nada. Dose zero registra apenas a refeição.
+- A pendência é confirmada no histórico, com o horário efetivo, sem criar uma segunda aplicação. O registro integrado é atômico e exclusivo do DataStore demonstrativo.
+- Fiasp é rápida (bolus); Lantus é basal. O paciente fictício usa Lantus 18 UI às 07:00 e 12 UI às 22:00, um cenário de teste fornecido pelo usuário, não uma recomendação de esquema. A bula de Lantus descreve uso uma vez ao dia.
+- O gráfico mostra perfis relativos normalizados por aplicação confirmada, sem somar percentuais de insulinas diferentes e sem calcular IOB. Aplicações pendentes ou substituídas não produzem curvas. As curvas nunca reduzem nem alimentam a calculadora de dose.
+- Fontes: [Fiasp, bula Novo Nordisk, tabela 6](https://www.novo-pi.com/fiasp.pdf): início 16–20 min, pico 91–133 min e retorno à linha de base 5–7 h nos grupos estudados; marcos ilustrativos escolhidos: 17 min, 122 min e 6 h. [Lantus, bula Sanofi, seção 12](https://products.sanofi.us/lantus/lantus.html): perfil prolongado, aproximadamente 24 h, sem pico pronunciado. Rampas e interpolação do gráfico são escolhas visuais, não um modelo farmacocinético validado ou uma previsão individual.
+
 PROJETO: GLYCARE — Monitoramento de Diabetes Tipo 1
 
 
@@ -794,3 +804,10 @@ npm run dev
 ```
 
 Aplicativo GlyCare — deploy inicial
+
+## LibreLinkUp experimental
+
+Conexao somente de leitura no modo Cloud, com selecao explicita da pessoa
+compartilhada. Leituras reais ficam separadas da demonstracao e dos calculos
+de dose. A conexao exige configuracao privada do servidor e uma migracao;
+nao basta abrir o frontend. Consulte [ativacao e limites](docs/libre-integration.md).
