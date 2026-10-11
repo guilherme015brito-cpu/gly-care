@@ -55,7 +55,7 @@ export function DemoDoseCalculator({
   const [localIncrement, setLocalIncrement] = useState(0.5);
   const increment = mealDose?.increment ?? localIncrement;
   const setIncrement = mealDose?.setIncrement ?? setLocalIncrement;
-  if (mode !== "demo") return null;
+  if (mode !== "demo" || reading?.source === "external") return null;
   const correctionOnly = kind === "correction";
   const glucose =
     (mealDose ? null : glucoseOverride) ??

@@ -16,6 +16,7 @@ import type {
   PatientMember,
 } from "../domain/types";
 import type { IncomingReading } from "../glucose/providers";
+import type { LibreRequest, LibreResult } from "../glucose/libre-contract";
 import type {
   AdministrationInput,
   FoodInput,
@@ -49,6 +50,7 @@ export interface DataStore {
   listGlucose(pid: string, since: Date): Promise<GlucoseReading[]>;
   /** Idempotent ingest: duplicates are skipped. Returns count inserted. */
   ingestGlucose(pid: string, readings: IncomingReading[]): Promise<number>;
+  libre(request: LibreRequest): Promise<LibreResult>;
 
   listCatalog(): Promise<InsulinCatalogItem[]>;
   listActionProfiles(): Promise<InsulinActionProfile[]>;

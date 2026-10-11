@@ -63,6 +63,9 @@ function seedFoods(): Food[] {
 }
 
 class DemoStore implements DataStore {
+  async libre(): Promise<never> {
+    throw new Error("Conexões reais não estão disponíveis na demonstração.");
+  }
   readonly mode = "demo" as const;
   private glucose: GlucoseReading[] = [];
   private catalog: InsulinCatalogItem[] = [];
@@ -286,6 +289,8 @@ class DemoStore implements DataStore {
       .sort((a, b) => a.measured_at.localeCompare(b.measured_at));
   }
   async ingestGlucose(pid: string, readings: Parameters<DataStore["ingestGlucose"]>[1]) {
+    if (readings.some((r) => r.source === "external"))
+      throw new Error("Leituras externas não podem entrar na demonstração.");
     await this.seed();
     const fresh = filterNewReadings(this.glucose, readings);
     for (const r of fresh) {

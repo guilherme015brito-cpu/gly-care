@@ -34,6 +34,7 @@ import { GlucoseChart } from "@/components/glycare/GlucoseChart";
 import { DemoDoseCalculator } from "@/components/glycare/DemoDoseCalculator";
 import { InsulinActionChart } from "@/components/glycare/InsulinActionChart";
 import { cn } from "@/lib/utils";
+import { useLibreStatus, useLibreSync } from "@/hooks/use-libre";
 
 export const Route = createFileRoute("/_shell/monitor/")({
   head: () => ({
@@ -47,6 +48,8 @@ export const Route = createFileRoute("/_shell/monitor/")({
 
 function Dashboard() {
   const { patient, mode } = useApp();
+  const libre = useLibreStatus();
+  const libreSync = useLibreSync(!!libre.data?.connected && !libre.data.expired);
   const [range, setRange] = useState<RangeKey>("24h");
   const hours = RANGE_HOURS[range];
   const glucose = useGlucose(hours);
@@ -95,11 +98,29 @@ function Dashboard() {
           onClick={() => {
             void latestQ.refetch();
             void glucose.refetch();
+            if (libre.data?.connected && !libre.data.expired) void libreSync.refetch();
           }}
         >
           <RefreshCw size={17} className={cn(latestQ.isFetching && "animate-spin")} />
         </button>
       </header>
+      {mode === "cloud" && (
+        <div className="mb-4 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-muted-foreground">
+              {libre.data?.connected ? "LibreLinkUp · conexão experimental" : "Libre não conectado"}
+            </span>
+            <Link to="/config/conexao" className="font-medium text-primary">
+              {libre.data?.connected ? "Gerenciar conexão" : "Conectar Libre"}
+            </Link>
+          </div>
+          {libre.error && <ErrorState error={libre.error} />}
+          {libreSync.error && <ErrorState error={libreSync.error} />}
+          {libre.data?.expired && (
+            <Notice tone="warning">Sessão Libre expirada. Reconecte em Configurações.</Notice>
+          )}
+        </div>
+      )}
       <div className="monitor-overview">
         <section
           className="glucose-summary"
@@ -122,7 +143,13 @@ function Dashboard() {
             <>
               <div className={cn("glucose-value", stale && "opacity-60")}>
                 <strong aria-label={`${latest.value_mgdl} miligramas por decilitro`}>
-                  {Math.round(latest.value_mgdl)}
+                  {latest.provider_id === "librelinkup" && latest.quality === "questionable"
+                    ? latest.notes?.includes("(HI)")
+                      ? "HI"
+                      : latest.notes?.includes("(LO)")
+                        ? "LO"
+                        : Math.round(latest.value_mgdl)
+                    : Math.round(latest.value_mgdl)}
                 </strong>
                 <div>
                   <p className="unit">mg/dL</p>
