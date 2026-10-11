@@ -804,3 +804,10 @@ npm run dev
 ```
 
 Aplicativo GlyCare — deploy inicial
+
+## LibreLinkUp experimental
+
+Conexao somente de leitura no modo Cloud, com selecao explicita da pessoa
+compartilhada. Leituras reais ficam separadas da demonstracao e dos calculos
+de dose. A conexao exige configuracao privada do servidor e uma migracao;
+nao basta abrir o frontend. Consulte [ativacao e limites](docs/libre-integration.md).

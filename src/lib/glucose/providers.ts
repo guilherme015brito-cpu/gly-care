@@ -1,4 +1,10 @@
-import type { GlucoseReading, GlucoseSource, GlucoseTrend, GlucoseUnit, ReadingQuality } from "../domain/types";
+import type {
+  GlucoseReading,
+  GlucoseSource,
+  GlucoseTrend,
+  GlucoseUnit,
+  ReadingQuality,
+} from "../domain/types";
 import { toMgdl } from "./status";
 
 /** Reading as delivered by a provider, before persistence. Original value/unit are preserved. */
@@ -104,7 +110,12 @@ export class ManualGlucoseProvider implements GlucoseProvider {
   async fetchSince(): Promise<IncomingReading[]> {
     return []; // manual readings are pushed, not pulled
   }
-  build(input: { value: number; unit: GlucoseUnit; measured_at: string; notes?: string | null }): IncomingReading {
+  build(input: {
+    value: number;
+    unit: GlucoseUnit;
+    measured_at: string;
+    notes?: string | null;
+  }): IncomingReading {
     return {
       value: input.value,
       unit: input.unit,
@@ -120,31 +131,31 @@ export class ManualGlucoseProvider implements GlucoseProvider {
   }
 }
 
-/**
- * Placeholder for a future, officially authorized FreeStyle Libre integration
- * (e.g. through an approved partner API). Intentionally NOT implemented:
- * no scraping, no unofficial auth, no credential capture.
- */
-export class FutureLibreProvider implements GlucoseProvider {
-  readonly id = "libre";
+/** Experimental read-only source. The fetcher is injected only on the server. */
+export class LibreLinkUpProvider implements GlucoseProvider {
+  constructor(private readonly fetcher?: (since: Date) => Promise<IncomingReading[]>) {}
+  readonly id = "librelinkup";
   readonly source = "external" as const;
-  readonly label = "FreeStyle Libre (integração futura)";
+  readonly label = "FreeStyle Libre / LibreLinkUp";
   status() {
-    return "not_implemented" as const;
+    return this.fetcher ? ("available" as const) : ("not_configured" as const);
   }
-  async fetchSince(): Promise<IncomingReading[]> {
-    throw new Error("Integração com FreeStyle Libre ainda não implementada.");
+  async fetchSince(since: Date): Promise<IncomingReading[]> {
+    if (!this.fetcher) throw new Error("Conexão Libre não configurada.");
+    return this.fetcher(since);
   }
 }
 
 export const PROVIDERS: GlucoseProvider[] = [
   new MockGlucoseProvider(),
   new ManualGlucoseProvider(),
-  new FutureLibreProvider(),
+  new LibreLinkUpProvider(),
 ];
 
 /** Idempotency key: provider + external id, or provider + measured timestamp. */
-export function dedupeKey(r: Pick<IncomingReading, "provider_id" | "external_id" | "measured_at">): string {
+export function dedupeKey(
+  r: Pick<IncomingReading, "provider_id" | "external_id" | "measured_at">,
+): string {
   return r.external_id
     ? `${r.provider_id}::ext::${r.external_id}`
     : `${r.provider_id}::ts::${new Date(r.measured_at).toISOString()}`;
@@ -154,7 +165,9 @@ export function dedupeKey(r: Pick<IncomingReading, "provider_id" | "external_id"
  * Merge incoming readings into an existing set, ignoring duplicates.
  * Returns only the readings that are genuinely new.
  */
-export function filterNewReadings<T extends Pick<IncomingReading, "provider_id" | "external_id" | "measured_at">>(
+export function filterNewReadings<
+  T extends Pick<IncomingReading, "provider_id" | "external_id" | "measured_at">,
+>(
   existing: Array<Pick<GlucoseReading, "provider_id" | "external_id" | "measured_at">>,
   incoming: T[],
 ): T[] {

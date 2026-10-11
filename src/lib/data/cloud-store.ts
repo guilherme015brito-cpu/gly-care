@@ -21,6 +21,7 @@ import {
 import { filterNewReadings, normalize } from "../glucose/providers";
 import type { DataStore } from "./store";
 import type { Json } from "@/integrations/supabase/types";
+import { libreRequest } from "../glucose/libre.functions";
 
 function check<T>(res: { data: T; error: { message: string; code?: string } | null }): T {
   if (res.error) throw new Error(friendlyError(res.error));
@@ -47,6 +48,9 @@ const num = (v: unknown): number | null => (v == null ? null : Number(v));
 
 export const cloudStore: DataStore = {
   mode: "cloud",
+  libre(request) {
+    return libreRequest({ data: request });
+  },
 
   async listPatients() {
     const uid = await myId();
@@ -89,6 +93,7 @@ export const cloudStore: DataStore = {
         .from("glucose_readings")
         .select("*")
         .eq("patient_id", pid)
+        .neq("source", "simulation")
         .gte("measured_at", since.toISOString())
         .order("measured_at", { ascending: true })
         .limit(2000),
@@ -98,6 +103,8 @@ export const cloudStore: DataStore = {
     );
   },
   async ingestGlucose(pid, readings) {
+    if (readings.some((r) => r.source === "simulation"))
+      throw new Error("Leituras simuladas não podem entrar no modo conectado.");
     if (!readings.length) return 0;
     const minT = readings.reduce(
       (m, r) => (r.measured_at < m ? r.measured_at : m),
