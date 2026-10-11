@@ -156,6 +156,8 @@ export interface CarbRatio {
   from: string; // "HH:MM"
   to: string;
   ratio_text: string;
+  sensitivity_text?: string;
+  meal_type?: MealType | undefined;
 }
 
 export interface ClinicalSettings {

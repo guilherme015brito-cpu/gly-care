@@ -97,4 +97,26 @@ describe("Automatic monitoring calculator", () => {
     });
     expect(screen.queryByText("Resultado demonstrativo")).not.toBeInTheDocument();
   });
+  it("switches the correction factor when the scenario time changes", async () => {
+    const { wrapper, client } = setup();
+    const view = render(
+      <DemoDoseCalculator kind="correction" at="2026-10-11T08:00:00" reading={reading} />,
+      { wrapper },
+    );
+    await screen.findByText("Resultado demonstrativo");
+    client.setQueryData(["demo", "demo", "settings"], {
+      ...settings,
+      carb_ratios: [
+        { from: "00:00", to: "11:00", sensitivity_text: "20", ratio_text: "10" },
+        { from: "11:00", to: "00:00", sensitivity_text: "40", ratio_text: "18" },
+      ],
+    });
+    await waitFor(() =>
+      expect(screen.getByText("Correção: máx(0, (180 − 120) ÷ 20)")).toBeInTheDocument(),
+    );
+    view.rerender(
+      <DemoDoseCalculator kind="correction" at="2026-10-11T20:00:00" reading={reading} />,
+    );
+    expect(screen.getByText("Correção: máx(0, (180 − 120) ÷ 40)")).toBeInTheDocument();
+  });
 });

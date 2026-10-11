@@ -151,7 +151,12 @@ function FoodPage() {
   });
   const totals = sumItems(computed.filter((c) => c.item).map((c) => c.item!));
   const allValid = lines.length > 0 && computed.every((c) => c.valid);
-  const dose = useDemoMealDose(totals.carbs_g, eatenAt, allValid && totals.carbs_g != null);
+  const dose = useDemoMealDose(
+    totals.carbs_g,
+    eatenAt,
+    allValid && totals.carbs_g != null,
+    mealType,
+  );
   const rapidOptions = (patientInsulins.data ?? [])
     .filter((p) => p.active && p.role === "rapid")
     .flatMap((p) => {

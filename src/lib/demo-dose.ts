@@ -1,48 +1,41 @@
-import type { ClinicalSettings } from "./domain/types";
+import type { ClinicalSettings, MealType } from "./domain/types";
+import { decimal, carbsPerUnit, sensitivityPerUnit, matchingDosePeriods } from "./dose-periods";
+export { decimal } from "./dose-periods";
 
-export function decimal(value: string): number | null {
-  const normalized = value.trim().replace(",", ".");
-  if (!/^\d+(\.\d+)?$/.test(normalized)) return null;
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : null;
-}
-
-function minutes(value: string): number | null {
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return null;
-  return Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
-}
-
-export function demoCorrectionParameters(settings: ClinicalSettings) {
+export function demoCorrectionParameters(
+  settings: ClinicalSettings,
+  at?: Date,
+  mealType?: MealType,
+) {
   const target = decimal((settings.target_glucose_text ?? "").replace(/\s*mg\/dL\s*$/i, ""));
-  const sensitivity = decimal(
-    (settings.sensitivity_factor_text ?? "").replace(/\s*mg\/dL(?:\s*\/\s*(?:UI|U))?\s*$/i, ""),
+  const scheduled = settings.carb_ratios.some((p) => p.sensitivity_text !== undefined);
+  const matching = at ? matchingDosePeriods(settings.carb_ratios, at, mealType) : [];
+  if (at && (!Number.isFinite(at.getTime()) || (scheduled && matching.length !== 1)))
+    return {
+      error: "Configure uma única faixa de sensibilidade válida para este horário ou refeição.",
+    } as const;
+  const band = scheduled && at ? matching[0] : undefined;
+  const sensitivity = sensitivityPerUnit(
+    band?.sensitivity_text ?? settings.sensitivity_factor_text ?? "",
   );
   if (target == null || target < 0 || sensitivity == null || sensitivity <= 0) {
     return {
       error: "Preencha o alvo e um fator de sensibilidade maior que zero nas configurações.",
     } as const;
   }
-  return { kind: "correction", target, sensitivity } as const;
+  return { kind: "correction", target, sensitivity, band } as const;
 }
 
-export function demoParameters(settings: ClinicalSettings, at: Date) {
-  const correction = demoCorrectionParameters(settings);
-  if ("error" in correction) return correction;
-  const t = at.getHours() * 60 + at.getMinutes();
-  const matching = settings.carb_ratios.filter((r) => {
-    const start = minutes(r.from),
-      end = minutes(r.to);
-    if (start == null || end == null || start === end || !Number.isFinite(at.getTime()))
-      return false;
-    return start < end ? t >= start && t < end : t >= start || t < end;
-  });
+export function demoParameters(settings: ClinicalSettings, at: Date, mealType?: MealType) {
+  const correction = demoCorrectionParameters(settings, at, mealType);
+  if ("error" in correction) return { error: correction.error } as const;
+  const matching = matchingDosePeriods(settings.carb_ratios, at, mealType);
   if (matching.length !== 1)
     return {
       error: "Configure uma única relação de carboidrato válida para este horário.",
     } as const;
   const band = matching[0]!;
-  const ratioMatch = band.ratio_text.trim().match(/^1\s*(?:UI|U)?\s*:\s*(\d+(?:[.,]\d+)?)\s*g?$/i);
-  const ratio = ratioMatch ? decimal(ratioMatch[1]!) : decimal(band.ratio_text);
+  const ratio = carbsPerUnit(band.ratio_text);
   if (ratio == null || ratio <= 0)
     return { error: "Revise os parâmetros numéricos da demonstração nas configurações." } as const;
   return { ...correction, kind: "meal", ratio, band } as const;

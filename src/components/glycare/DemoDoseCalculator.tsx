@@ -12,7 +12,7 @@ import {
   demoCorrectionParameters,
 } from "@/lib/demo-dose";
 import type { GlucoseReading } from "@/lib/domain/types";
-import { fmtDateTime, fmtNum } from "@/lib/domain/labels";
+import { fmtDateTime, fmtNum, MEAL_LABEL } from "@/lib/domain/labels";
 import { Input } from "@/components/ui/input";
 import { Field, inputCls } from "./form";
 import { ErrorState, LoadingState } from "./ui-bits";
@@ -64,7 +64,7 @@ export function DemoDoseCalculator({
     ? mealDose.parameters
     : settings.data
       ? correctionOnly
-        ? demoCorrectionParameters(settings.data)
+        ? demoCorrectionParameters(settings.data, new Date(at))
         : demoParameters(settings.data, new Date(at))
       : null;
   const result = mealDose
@@ -119,6 +119,15 @@ export function DemoDoseCalculator({
         </p>
       ) : (
         <div className={correctionOnly ? "correction-layout" : undefined}>
+          {parameters.band && (
+            <p className="col-span-full mb-3 text-xs text-muted-foreground">
+              {parameters.band.meal_type
+                ? MEAL_LABEL[parameters.band.meal_type]
+                : "Faixa de horário"}
+              {" · "}
+              {parameters.band.from}–{parameters.band.to}
+            </p>
+          )}
           <div>
             <div className="grid grid-cols-2 gap-3">
               <Field

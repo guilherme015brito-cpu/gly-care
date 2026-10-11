@@ -20,6 +20,7 @@ import type { DataStore } from "./store";
 import { tacoFoods } from "../taco-foods";
 import { computeItem, sumItems } from "../nutrition";
 import { DEMO_INSULIN_PROFILES } from "../insulin/demo-action";
+import { validateDosePeriods } from "../dose-periods";
 
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -84,10 +85,34 @@ class DemoStore implements DataStore {
     basal_insulin_text: "Lantus · 18 UI às 07:00 e 12 UI às 22:00 (cenário fictício)",
     administration_times: "Fiasp nas refeições; Lantus às 07:00 e 22:00 (demonstração)",
     carb_ratios: [
-      { from: "00:00", to: "11:00", ratio_text: "1 UI : 10 g" },
-      { from: "11:00", to: "15:00", ratio_text: "1 UI : 12 g" },
-      { from: "15:00", to: "18:00", ratio_text: "1 UI : 15 g" },
-      { from: "18:00", to: "00:00", ratio_text: "1 UI : 12 g" },
+      {
+        meal_type: "breakfast",
+        from: "00:00",
+        to: "11:00",
+        sensitivity_text: "20",
+        ratio_text: "1 UI : 10 g",
+      },
+      {
+        meal_type: "lunch",
+        from: "11:00",
+        to: "15:00",
+        sensitivity_text: "30",
+        ratio_text: "1 UI : 12 g",
+      },
+      {
+        meal_type: "snack",
+        from: "15:00",
+        to: "18:00",
+        sensitivity_text: "30",
+        ratio_text: "1 UI : 10 g",
+      },
+      {
+        meal_type: "dinner",
+        from: "18:00",
+        to: "00:00",
+        sensitivity_text: "40",
+        ratio_text: "1 UI : 18 g",
+      },
     ],
   };
   private patient: Patient = {
@@ -561,6 +586,8 @@ class DemoStore implements DataStore {
     return this.settings;
   }
   async saveSettings(pid: string, s: Parameters<DataStore["saveSettings"]>[1]) {
+    const error = validateDosePeriods(s.carb_ratios);
+    if (error) throw new Error(error);
     const old = this.settings;
     this.settings = { ...s, patient_id: pid };
     this.log("clinical_settings", pid, "UPDATE", old, this.settings);

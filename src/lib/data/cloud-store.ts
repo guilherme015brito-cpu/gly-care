@@ -22,6 +22,7 @@ import { filterNewReadings, normalize } from "../glucose/providers";
 import type { DataStore } from "./store";
 import type { Json } from "@/integrations/supabase/types";
 import { libreRequest } from "../glucose/libre.functions";
+import { validateDosePeriods } from "../dose-periods";
 
 function check<T>(res: { data: T; error: { message: string; code?: string } | null }): T {
   if (res.error) throw new Error(friendlyError(res.error));
@@ -375,11 +376,20 @@ export const cloudStore: DataStore = {
     } as ClinicalSettings;
   },
   async saveSettings(pid, s) {
-    check(
+    const error = validateDosePeriods(s.carb_ratios);
+    if (error) throw new Error(error);
+    const saved = check(
       await supabase
         .from("clinical_settings")
-        .upsert({ ...s, carb_ratios: s.carb_ratios as unknown as Json, patient_id: pid }),
+        .upsert(
+          { ...s, carb_ratios: s.carb_ratios as unknown as Json, patient_id: pid },
+          { onConflict: "patient_id" },
+        )
+        .select("patient_id")
+        .single(),
     );
+    if (saved?.patient_id !== pid)
+      throw new Error("Não foi possível confirmar o salvamento dos parâmetros.");
   },
 
   async listMembers(pid) {

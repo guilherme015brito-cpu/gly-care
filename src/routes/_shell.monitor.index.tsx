@@ -247,11 +247,7 @@ function Dashboard() {
         </section>
       </div>
       {mode === "demo" && (
-        <DemoDoseCalculator
-          kind="correction"
-          at={latest?.measured_at ?? new Date().toISOString()}
-          reading={latest}
-        />
+        <DemoDoseCalculator kind="correction" at={new Date().toISOString()} reading={latest} />
       )}
       <dl className="monitor-stats">
         <div>
