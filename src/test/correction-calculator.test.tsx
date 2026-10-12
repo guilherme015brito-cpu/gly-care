@@ -8,7 +8,15 @@ import { DEFAULT_SETTINGS, type ClinicalSettings, type GlucoseReading } from "@/
 
 vi.mock("@/lib/app-context", () => ({ usePatientStore: vi.fn() }));
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>,
+  Link: ({
+    to,
+    search,
+    children,
+  }: {
+    to: string;
+    search?: { tipo?: string };
+    children: ReactNode;
+  }) => <a href={to + (search?.tipo ? "?tipo=" + search.tipo : "")}>{children}</a>,
 }));
 afterEach(cleanup);
 const settings: ClinicalSettings = {
@@ -37,6 +45,7 @@ function setup(mode: "demo" | "cloud" = "demo") {
   const store = { getSettings: vi.fn().mockResolvedValue(settings) };
   vi.mocked(usePatientStore).mockReturnValue({
     mode,
+    readOnly: false,
     key: [mode, "demo"],
     pid: "demo",
     store,
@@ -104,6 +113,35 @@ describe("Automatic monitoring calculator", () => {
       target: { value: "180" },
     });
     expect(screen.getByText("Correção: máx(0, (180 − 120) ÷ 30)")).toBeInTheDocument();
+  });
+  it("offers correction registration only after a positive result and without transferring the dose", async () => {
+    const { wrapper } = setup("cloud");
+    const view = render(<DemoDoseCalculator kind="correction" at={reading.measured_at} />, {
+      wrapper,
+    });
+    await screen.findByText("Resultado demonstrativo");
+    expect(screen.queryByRole("link", { name: "Registrar aplicação" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Glicemia simulada (mg/dL)"), {
+      target: { value: "210" },
+    });
+    expect(screen.getByRole("link", { name: "Registrar aplicação" })).toHaveAttribute(
+      "href",
+      "/monitor/insulina/nova?tipo=correction",
+    );
+    fireEvent.change(screen.getByLabelText("Glicemia simulada (mg/dL)"), {
+      target: { value: "120" },
+    });
+    expect(screen.queryByRole("link", { name: "Registrar aplicação" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Glicemia simulada (mg/dL)"), {
+      target: { value: "bad" },
+    });
+    expect(screen.queryByRole("link", { name: "Registrar aplicação" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Glicemia simulada (mg/dL)"), {
+      target: { value: "210" },
+    });
+    vi.mocked(usePatientStore).mockReturnValue({ ...usePatientStore(), readOnly: true });
+    view.rerender(<DemoDoseCalculator kind="correction" at={reading.measured_at} />);
+    expect(screen.queryByRole("link", { name: "Registrar aplicação" })).not.toBeInTheDocument();
   });
   it("switches the correction factor when the scenario time changes", async () => {
     const { wrapper, client } = setup();
