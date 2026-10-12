@@ -1,12 +1,20 @@
+import { PORTION_UNITS, normalizePortionNutrient } from "@/lib/food-measures";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageHeader, Card, Notice } from "@/components/glycare/ui-bits";
-import { Field, Segmented, inputCls, zodErrors, type Errors } from "@/components/glycare/form";
+import {
+  Field,
+  Segmented,
+  inputCls,
+  selectCls,
+  zodErrors,
+  type Errors,
+} from "@/components/glycare/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useStoreMutation } from "@/hooks/use-data";
 import { usePatientStore } from "@/lib/app-context";
-import { foodSchema, type FoodInput } from "@/lib/validation";
+import { foodSchema, gramsSchema, type FoodInput } from "@/lib/validation";
 
 export const Route = createFileRoute("/_shell/alimentacao/novo")({
   head: () => ({
@@ -24,6 +32,9 @@ function NewFood() {
   const { readOnly } = usePatientStore();
   const navigate = useNavigate();
   const [f, setF] = useState({
+    portion_amount: "100",
+    portion_unit: "g" as FoodInput["portion_unit"],
+    portion_grams: "",
     name: "",
     preparation: "",
     state: "not_applicable" as FoodInput["state"],
@@ -43,7 +54,22 @@ function NewFood() {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (readOnly) return;
-    const r = foodSchema.safeParse(f);
+    const amount = gramsSchema.safeParse(f.portion_amount);
+    const mass = gramsSchema.safeParse(f.portion_unit === "g" ? f.portion_amount : f.portion_grams);
+    if (!amount.success || !mass.success)
+      return setErrors({
+        ...(!amount.success ? { portion_amount: "Informe uma porção entre 0,1 e 5000." } : {}),
+        ...(!mass.success ? { portion_grams: "Informe o peso em gramas dessa porção." } : {}),
+      });
+    const r = foodSchema.safeParse({
+      ...f,
+      portion_amount: amount.data,
+      portion_grams: mass.data,
+      carbs_per_100g: normalizePortionNutrient(f.carbs_per_100g, mass.data),
+      protein_per_100g: normalizePortionNutrient(f.protein_per_100g, mass.data),
+      fat_per_100g: normalizePortionNutrient(f.fat_per_100g, mass.data),
+      kcal_per_100g: normalizePortionNutrient(f.kcal_per_100g, mass.data),
+    });
     if (!r.success) return setErrors(zodErrors(r.error));
     setErrors({});
     save.mutate(r.data, { onSuccess: () => navigate({ to: "/alimentacao" }) });
@@ -52,7 +78,10 @@ function NewFood() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Cadastrar alimento" subtitle="Valores por 100 g" />
+      <PageHeader
+        title="Cadastrar alimento"
+        subtitle="Informe os nutrientes da porção cadastrada"
+      />
       <Card>
         <form onSubmit={submit} className="space-y-3" noValidate>
           <Segmented
@@ -108,6 +137,52 @@ function NewFood() {
               onChange={set("source_reference")}
             />
           </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field id="portion-amount" label="Tamanho da porção" error={errors["portion_amount"]}>
+              <Input
+                id="portion-amount"
+                inputMode="decimal"
+                className={inputCls}
+                value={f.portion_amount}
+                onChange={set("portion_amount")}
+              />
+            </Field>
+            <Field id="portion-unit" label="Unidade da porção">
+              <select
+                id="portion-unit"
+                className={selectCls}
+                value={f.portion_unit}
+                onChange={(e) =>
+                  setF({ ...f, portion_unit: e.target.value as FoodInput["portion_unit"] })
+                }
+              >
+                {Object.entries(PORTION_UNITS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          {f.portion_unit !== "g" && (
+            <Field
+              id="portion-mass"
+              label="Peso dessa porção (g)"
+              error={errors["portion_grams"]}
+              hint="Use o peso medido ou indicado pelo fabricante. O peso de 200 ml depende do alimento; não presumimos que seja 200 g."
+            >
+              <Input
+                id="portion-mass"
+                inputMode="decimal"
+                className={inputCls}
+                value={f.portion_grams}
+                onChange={set("portion_grams")}
+              />
+            </Field>
+          )}
+          <p className="text-sm font-semibold">
+            Nutrientes em {f.portion_amount || "—"} {PORTION_UNITS[f.portion_unit]}:
+          </p>
           <Notice tone="info">
             Deixe em branco o que você não sabe. O app não inventa valores ausentes.
           </Notice>

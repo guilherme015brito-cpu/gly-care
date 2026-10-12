@@ -1,3 +1,4 @@
+import { readMealDraft, writeMealDraft, clearMealDraft } from "./meal-draft";
 // In-memory demo store. Data is SIMULATED and lives only in this browser tab.
 // Nothing here is persisted (no localStorage / IndexedDB) by design.
 import {
@@ -64,6 +65,9 @@ function seedFoods(): Food[] {
 }
 
 class DemoStore implements DataStore {
+  readMealDraft = readMealDraft;
+  writeMealDraft = writeMealDraft;
+  clearMealDraft = clearMealDraft;
   async libre(): Promise<never> {
     throw new Error("Conexões reais não estão disponíveis na demonstração.");
   }
@@ -411,7 +415,8 @@ class DemoStore implements DataStore {
 
   async listAdministrations(_pid: string, limit = 50) {
     await this.seed();
-    return [...this.admins]
+    return this.admins
+      .filter((a) => !a.deleted_at)
       .sort((a, b) => b.administered_at.localeCompare(a.administered_at))
       .slice(0, limit);
   }
@@ -469,9 +474,18 @@ class DemoStore implements DataStore {
     };
     return row;
   }
+  async deleteAdministration(pid: string, id: string) {
+    const row = this.admins.find((a) => a.id === id && a.patient_id === pid);
+    if (!row) throw new Error("Registro não encontrado.");
+    if (row.deleted_at) return;
+    const old = { ...row };
+    row.deleted_at = new Date().toISOString();
+    this.log("insulin_administrations", id, "UPDATE", old, row);
+  }
   async markAdministrationPerformed(id: string, administeredAt = new Date().toISOString()) {
     const a = this.admins.find((x) => x.id === id);
-    if (!a || a.is_superseded) throw new Error("Registro não disponível para confirmação.");
+    if (!a || a.is_superseded || a.deleted_at)
+      throw new Error("Registro não disponível para confirmação.");
     if (a.status === "performed") return;
     const at = new Date(administeredAt).getTime();
     if (!Number.isFinite(at) || at > Date.now() + 5 * 60000)
@@ -511,6 +525,9 @@ class DemoStore implements DataStore {
     this.foods.push({
       id: uid(),
       patient_id: pid,
+      portion_amount: i.portion_amount,
+      portion_unit: i.portion_unit,
+      portion_grams: i.portion_grams,
       name: i.name,
       preparation: i.preparation,
       state: i.state,

@@ -80,6 +80,7 @@ export interface PatientInsulin {
 }
 
 export interface InsulinAdministration {
+  deleted_at?: string | null;
   scheduled_key?: string | null;
   /** In-memory demo association, never written to the Cloud schema. */
   meal_id?: string;
@@ -113,6 +114,9 @@ export interface KetoneReading {
 }
 
 export interface Food {
+  portion_amount?: number;
+  portion_unit?: "g" | "ml" | "colher" | "colher_sopa" | "concha";
+  portion_grams?: number;
   id: string;
   patient_id: string | null;
   name: string;

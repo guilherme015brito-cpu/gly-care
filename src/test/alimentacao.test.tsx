@@ -11,7 +11,10 @@ import { Route as HistoryRoute } from "@/routes/_shell.monitor.insulina.index";
 import { nowLocalInput } from "@/lib/domain/labels";
 import { demoActionApplications } from "@/lib/insulin/demo-action";
 
-vi.mock("@/lib/app-context", () => ({ usePatientStore: vi.fn() }));
+vi.mock("@/lib/app-context", () => ({
+  usePatientStore: vi.fn(),
+  useApp: () => ({ session: null }),
+}));
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({ options }),
   useRouter: () => ({ history: { back: vi.fn() } }),
@@ -50,12 +53,16 @@ function setMode(mode: "demo" | "cloud") {
 async function add(name: string, grams: string) {
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: name } });
   fireEvent.click(await screen.findByRole("button", { name: `Adicionar ${name}` }));
-  fireEvent.change(screen.getByLabelText(`Quantidade em gramas de ${name}`), {
+  fireEvent.change(screen.getByLabelText(`Quantidade de ${name}`), {
     target: { value: grams },
   });
+  const glucose = screen.queryByLabelText("Glicemia (mg/dL)");
+  if (glucose && !(glucose as HTMLInputElement).value)
+    fireEvent.change(glucose, { target: { value: "180" } });
 }
 
 beforeEach(() => {
+  localStorage.clear();
   resetDemoStore();
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -68,6 +75,72 @@ afterEach(() => {
 });
 
 describe("Alimentação with local TACO", () => {
+  it("starts with blank glucose, restores an unfinished meal and clears it only after success", async () => {
+    setMode("cloud");
+    store.addMeal = vi.fn().mockResolvedValue(undefined);
+    render(<FoodPage />, { wrapper });
+    expect(await screen.findByLabelText("Glicemia simulada (mg/dL)")).toHaveValue("");
+    await add("Arroz, tipo 1, cozido", "150");
+    fireEvent.change(screen.getByLabelText("Glicemia simulada (mg/dL)"), {
+      target: { value: "147" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    fireEvent.change(await screen.findByLabelText("Dose informada (UI)"), {
+      target: { value: "2,5" },
+    });
+    const scope = "cloud:demo:demo-patient";
+    const request = (store.readMealDraft(scope)["pending"] as { requestId: string }).requestId;
+    cleanup();
+    client.clear();
+    render(<FoodPage />, { wrapper });
+    expect(await screen.findByLabelText("Dose informada (UI)")).toHaveValue("2,5");
+    expect(screen.getByLabelText("Quantidade de Arroz, tipo 1, cozido")).toHaveValue("150");
+    expect(await screen.findByLabelText("Glicemia simulada (mg/dL)")).toHaveValue("147");
+    expect((store.readMealDraft(scope)["pending"] as { requestId: string }).requestId).toBe(
+      request,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Registrar somente refeição" }));
+    await screen.findByText("Refeição registrada sem aplicação.");
+    expect(store.readMealDraft(scope)).toEqual({});
+  });
+
+  it("shows a failed autosave instead of claiming the draft is saved", async () => {
+    setMode("cloud");
+    render(<FoodPage />, { wrapper });
+    vi.spyOn(store, "writeMealDraft").mockImplementation(() => {
+      throw new Error("quota");
+    });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "arroz" } });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível salvar ou recuperar",
+    );
+  });
+
+  it("removes an insulin record from active history and curves but keeps its audit", async () => {
+    setMode("demo");
+    const original = (await store.listAdministrations("demo-patient"))[0]!;
+    render(<AdminHistory />, { wrapper });
+    fireEvent.click((await screen.findAllByRole("button", { name: "Excluir" }))[0]!);
+    fireEvent.click(await screen.findByRole("button", { name: "Excluir registro" }));
+    await waitFor(async () =>
+      expect(
+        (await store.listAdministrations("demo-patient")).some((a) => a.id === original.id),
+      ).toBe(false),
+    );
+    expect(
+      (await store.listAudit("demo-patient")).some(
+        (a) => a.record_id === original.id && a.action === "UPDATE",
+      ),
+    ).toBe(true);
+    const applications = demoActionApplications(
+      [{ ...original, deleted_at: new Date().toISOString() }],
+      await store.listCatalog(),
+    );
+    expect(applications).toHaveLength(0);
+    await expect(store.markAdministrationPerformed(original.id)).rejects.toThrow();
+    await expect(store.deleteAdministration("different-patient", original.id)).rejects.toThrow();
+  });
+
   it.each(["demo", "cloud"] as const)(
     "loads all TACO foods alongside custom foods in %s mode",
     async (mode) => {
@@ -121,7 +194,7 @@ describe("Alimentação with local TACO", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Glicemia (mg/dL)")).toHaveValue(String(latest.value_mgdl)),
     );
-    expect(screen.getByLabelText("Glicemia (mg/dL)")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Glicemia (mg/dL)")).not.toHaveAttribute("readonly");
     expect(await screen.findByText("Refeição: 39 ÷ 12")).toBeInTheDocument();
     expect(screen.getByText("5,5")).toBeInTheDocument();
     const before = (await store.listMeals("demo-patient")).length;
@@ -215,9 +288,7 @@ describe("Alimentação with local TACO", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(await store.listMeals("demo-patient")).toHaveLength(beforeMeals);
     expect(await store.listAdministrations("demo-patient")).toHaveLength(beforeAdmins);
-    expect(screen.getByLabelText("Quantidade em gramas de Arroz, tipo 1, cozido")).toHaveValue(
-      "100",
-    );
+    expect(screen.getByLabelText("Quantidade de Arroz, tipo 1, cozido")).toHaveValue("100");
   });
 
   it("finds TACO foods with or without accent marks", async () => {
@@ -238,7 +309,7 @@ describe("Alimentação with local TACO", () => {
     }
   });
 
-  it("saves the selected rounding and updates automatically from a new monitor reading", async () => {
+  it("keeps entered glucose independent of monitor updates and saves the selected rounding", async () => {
     setMode("demo");
     await store.listPatients();
     render(<FoodPage />, { wrapper });
@@ -252,7 +323,9 @@ describe("Alimentação with local TACO", () => {
     client.setQueryData(["demo", "demo-patient", "glucose", 24], [{ ...latest, value_mgdl: 180 }]);
     await waitFor(() => expect(screen.getByLabelText("Glicemia (mg/dL)")).toHaveValue("180"));
     client.setQueryData(["demo", "demo-patient", "glucose", 24], [{ ...latest, value_mgdl: 210 }]);
-    await waitFor(() => expect(screen.getByLabelText("Glicemia (mg/dL)")).toHaveValue("210"));
+    await screen.findByText("210 mg/dL");
+    expect(screen.getByLabelText("Glicemia (mg/dL)")).toHaveValue("180");
+    fireEvent.change(screen.getByLabelText("Glicemia (mg/dL)"), { target: { value: "210" } });
     fireEvent.change(screen.getByLabelText("Arredondamento (UI)"), { target: { value: "1" } });
     fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
     const button = await screen.findByRole("button", { name: "Sim, registrar aplicação" });
@@ -298,6 +371,7 @@ describe("Alimentação with local TACO", () => {
     const before = (await store.listAdministrations("demo-patient")).length;
     render(<FoodPage />, { wrapper });
     await add("Frango, peito, sem pele, cozido", "100");
+    fireEvent.change(screen.getByLabelText("Glicemia (mg/dL)"), { target: { value: "100" } });
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Registrar refeição" })).toBeEnabled(),
     );
@@ -352,7 +426,8 @@ describe("Alimentação with local TACO", () => {
       await add("Arroz, tipo 1, cozido", "100");
       await screen.findByText("Resultado demonstrativo");
       expect(screen.getByLabelText("Glicemia simulada (mg/dL)")).toHaveValue("");
-      expect(listGlucose).not.toHaveBeenCalled();
+      expect(listGlucose).toHaveBeenCalled();
+      expect(screen.getByLabelText("Glicemia simulada (mg/dL)")).toHaveValue("");
       fireEvent.change(screen.getByLabelText("Glicemia simulada (mg/dL)"), {
         target: { value: "180" },
       });

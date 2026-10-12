@@ -42,6 +42,10 @@ export interface NewMeal {
 
 /** Single data-access contract implemented by the in-memory demo and by Lovable Cloud. */
 export interface DataStore {
+  readMealDraft(scope: string): Record<string, unknown>;
+  writeMealDraft(scope: string, field: string, value: unknown): void;
+  clearMealDraft(scope: string): void;
+  deleteAdministration(pid: string, id: string): Promise<void>;
   readonly mode: "demo" | "cloud";
   listPatients(): Promise<Patient[]>;
   createPatient(nickname: string): Promise<Patient>;

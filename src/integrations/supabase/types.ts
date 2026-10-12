@@ -120,6 +120,9 @@ export type Database = {
       }
       food_catalog: {
         Row: {
+          portion_amount: number
+          portion_unit: string
+          portion_grams: number
           carbs_per_100g: number | null
           created_at: string
           created_by: string | null
@@ -138,6 +141,9 @@ export type Database = {
           state: string
         }
         Insert: {
+          portion_amount?: number
+          portion_unit?: string
+          portion_grams?: number
           carbs_per_100g?: number | null
           created_at?: string
           created_by?: string | null
@@ -156,6 +162,9 @@ export type Database = {
           state?: string
         }
         Update: {
+          portion_amount?: number
+          portion_unit?: string
+          portion_grams?: number
           carbs_per_100g?: number | null
           created_at?: string
           created_by?: string | null
@@ -324,6 +333,7 @@ export type Database = {
       }
       insulin_administrations: {
         Row: {
+          deleted_at: string | null
           administered_at: string
           confirmed_by_user: boolean
           created_at: string
@@ -343,6 +353,7 @@ export type Database = {
           supersedes_id: string | null
         }
         Insert: {
+          deleted_at?: string | null
           administered_at: string
           confirmed_by_user?: boolean
           created_at?: string
@@ -362,6 +373,7 @@ export type Database = {
           supersedes_id?: string | null
         }
         Update: {
+          deleted_at?: string | null
           administered_at?: string
           confirmed_by_user?: boolean
           created_at?: string
@@ -777,6 +789,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      remove_insulin_administration: {
+        Args: { p_patient_id: string; p_id: string }
+        Returns: undefined
+      }
       add_patient_member_by_email: {
         Args: {
           _email: string

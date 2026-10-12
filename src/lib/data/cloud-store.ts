@@ -1,3 +1,4 @@
+import { readMealDraft, writeMealDraft, clearMealDraft } from "./meal-draft";
 // Lovable Cloud data store. Uses the browser client with the signed-in session:
 // every query is filtered by Row Level Security on the server.
 import { supabase } from "@/integrations/supabase/client";
@@ -90,6 +91,9 @@ const mealWithAdministrationClient = supabase as unknown as {
 };
 
 export const cloudStore: DataStore = {
+  readMealDraft,
+  writeMealDraft,
+  clearMealDraft,
   mode: "cloud",
   libre(request) {
     return libreRequest({ data: request });
@@ -277,6 +281,7 @@ export const cloudStore: DataStore = {
       await supabase
         .from("insulin_administrations")
         .select("*")
+        .is("deleted_at", null)
         .eq("patient_id", pid)
         .order("administered_at", { ascending: false })
         .limit(limit),
@@ -318,6 +323,9 @@ export const cloudStore: DataStore = {
           .eq("id", supersedesId),
       );
   },
+  async deleteAdministration(pid, id) {
+    check(await supabase.rpc("remove_insulin_administration", { p_patient_id: pid, p_id: id }));
+  },
   async markAdministrationPerformed(id, administeredAt = new Date().toISOString()) {
     const at = new Date(administeredAt).getTime();
     if (!Number.isFinite(at) || at > Date.now() + 5 * 60000)
@@ -331,6 +339,7 @@ export const cloudStore: DataStore = {
           administered_at: new Date(at).toISOString(),
         })
         .eq("id", id)
+        .is("deleted_at", null)
         .eq("status", "planned")
         .eq("is_superseded", false),
     );
