@@ -31,7 +31,7 @@ begin
     raise exception 'Removal did not retain the original row';
   end if;
   reset role;
-  if not exists(select 1 from public.audit_logs where record_id=a and action='UPDATE') then
+  if not exists(select 1 from public.audit_logs where record_id=a::text and action='UPDATE') then
     raise exception 'Removal not audited';
   end if;
 end $$;
