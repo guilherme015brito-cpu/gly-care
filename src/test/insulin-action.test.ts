@@ -15,8 +15,8 @@ describe("Illustrative insulin action, not IOB", () => {
     const p = DEMO_INSULIN_PROFILES.fiasp;
     expect(illustrativeAction(p, -1)).toBe(0);
     expect(illustrativeAction(p, 17)).toBe(0);
-    expect(illustrativeAction(p, 120)).toBe(100);
-    expect(illustrativeAction(p, 300)).toBe(0);
+    expect(illustrativeAction(p, 122)).toBe(100);
+    expect(illustrativeAction(p, 360)).toBe(0);
     expect(illustrativeAction(p, NaN)).toBe(0);
     for (let i = 0; i <= 500; i++) expect(illustrativeAction(p, i)).toBeGreaterThanOrEqual(0);
   });

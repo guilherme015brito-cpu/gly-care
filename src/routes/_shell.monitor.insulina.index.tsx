@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { History, Plus, Pencil, CheckCircle2 } from "lucide-react";
+import { History, Plus, Pencil, CheckCircle2, Trash2 } from "lucide-react";
 import {
   PageHeader,
   Card,
@@ -58,6 +58,11 @@ function AdminHistory() {
   const [tab, setTab] = useState<"list" | "audit">("list");
   const [pending, setPending] = useState<InsulinAdministration | null>(null);
   const [appliedAt, setAppliedAt] = useState(nowLocalInput());
+  const [removing, setRemoving] = useState<InsulinAdministration | null>(null);
+  const remove = useStoreMutation(
+    (s, pid, id: string) => s.deleteAdministration(pid, id),
+    "Registro de insulina excluído",
+  );
   const admins = useAdministrations(200);
   const catalog = useCatalog();
   const audit = useAudit();
@@ -159,6 +164,9 @@ function AdminHistory() {
                             <Pencil aria-hidden /> Corrigir
                           </Link>
                         </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setRemoving(a)}>
+                          <Trash2 aria-hidden /> Excluir
+                        </Button>
                         {a.status === "planned" && (
                           <Button
                             variant="soft"
@@ -213,6 +221,42 @@ function AdminHistory() {
           )}
         </Card>
       )}
+      <Dialog
+        open={!!removing}
+        onOpenChange={(open) => {
+          if (!open && !remove.isPending) setRemoving(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir registro de insulina?</DialogTitle>
+            <DialogDescription>
+              O registro será removido do histórico ativo e dos gráficos. A trilha de auditoria será
+              preservada.
+            </DialogDescription>
+          </DialogHeader>
+          {removing && (
+            <p>
+              {name(removing.insulin_id)} · {removing.dose_units} UI ·{" "}
+              {fmtDateTime(removing.administered_at)}
+            </p>
+          )}
+          {remove.error && <ErrorState error={remove.error} />}
+          <Button
+            variant="destructive"
+            disabled={remove.isPending}
+            onClick={() => {
+              if (removing && !remove.isPending)
+                remove.mutate(removing.id, { onSuccess: () => setRemoving(null) });
+            }}
+          >
+            {remove.isPending ? "Excluindo…" : "Excluir registro"}
+          </Button>
+          <Button variant="outline" disabled={remove.isPending} onClick={() => setRemoving(null)}>
+            Cancelar
+          </Button>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={!!pending}
         onOpenChange={(open) => {

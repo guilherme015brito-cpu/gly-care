@@ -59,7 +59,7 @@ export function DemoDoseCalculator({
   const monitorReading = mode === "demo" ? reading : undefined;
   const correctionOnly = kind === "correction";
   const glucose =
-    (mealDose && mode === "cloud" ? mealDose.scenarioGlucose : mealDose ? null : glucoseOverride) ??
+    (mealDose ? mealDose.scenarioGlucose : glucoseOverride) ??
     (correctionOnly || followMonitor
       ? monitorReading
         ? String(monitorReading.value_mgdl)
@@ -150,14 +150,26 @@ export function DemoDoseCalculator({
                   inputMode="decimal"
                   className={inputCls}
                   value={glucose}
-                  readOnly={!!mealDose && mode === "demo"}
                   onChange={(e) =>
-                    mealDose && mode === "cloud"
+                    mealDose
                       ? mealDose.setScenarioGlucose(e.target.value)
                       : setGlucoseOverride(e.target.value)
                   }
                 />
               </Field>
+              {mealDose && (
+                <div className="rounded-md bg-muted p-3 text-sm" aria-live="polite">
+                  <p className="font-semibold">Última glicemia medida</p>
+                  <p>
+                    {reading ? fmtNum(reading.value_mgdl) + " mg/dL" : "Sem leitura disponível"}
+                  </p>
+                  {reading && <p className="text-xs">{fmtDateTime(reading.measured_at)}</p>}
+                  {mealDose.readingError && (
+                    <p className="text-xs">Não foi possível atualizar a leitura.</p>
+                  )}
+                  <p className="text-xs">Referência · não preenche a simulação</p>
+                </div>
+              )}
               <Field id={id + "-rounding"} label="Arredondamento (UI)">
                 <select
                   id={id + "-rounding"}

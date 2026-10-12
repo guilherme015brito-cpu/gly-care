@@ -1,3 +1,5 @@
+import { useMealDraftError, useMealDraftScope, useMealDraftState } from "@/hooks/use-meal-draft";
+import { foodMeasures, measureGrams } from "@/lib/food-measures";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import {
@@ -80,6 +82,7 @@ interface Line {
   food: Food;
   grams: string;
   includesInedible: boolean;
+  measure?: string;
 }
 
 // Remove accent marks and normalize punctuation/spacing, preserving source food labels.
@@ -93,29 +96,35 @@ function normalizeFoodSearch(value: string): string {
 }
 
 function FoodPage() {
-  const { readOnly, mode } = usePatientStore();
+  const scope = useMealDraftScope();
+  return <MealComposer key={scope} />;
+}
+function MealComposer() {
+  const { readOnly, mode, store } = usePatientStore();
+  const draftScope = useMealDraftScope();
+  const draftError = useMealDraftError();
   const foods = useFoods();
   const meals = useMeals(50);
-  const [q, setQ] = useState("");
-  const [lines, setLines] = useState<Line[]>([]);
-  const [mealType, setMealType] = useState<MealType>("lunch");
-  const [eatenAt, setEatenAt] = useState(nowLocalInput());
-  const [notes, setNotes] = useState("");
-  const [fav, setFav] = useState(false);
-  const [favName, setFavName] = useState("");
+  const [q, setQ] = useMealDraftState("q", "");
+  const [lines, setLines] = useMealDraftState<Line[]>("lines", []);
+  const [mealType, setMealType] = useMealDraftState<MealType>("mealType", "lunch");
+  const [eatenAt, setEatenAt] = useMealDraftState("eatenAt", nowLocalInput());
+  const [notes, setNotes] = useMealDraftState("notes", "");
+  const [fav, setFav] = useMealDraftState("fav", false);
+  const [favName, setFavName] = useMealDraftState("favName", "");
   const catalog = useCatalog();
   const patientInsulins = usePatientInsulins();
-  const [pending, setPending] = useState<{
+  const [pending, setPending] = useMealDraftState<{
     meal: NewMeal;
     dose: number;
     glucose: number | null;
     purpose: "meal" | "combined";
     requestId: string;
-  } | null>(null);
-  const [insulinId, setInsulinId] = useState("");
-  const [manualDose, setManualDose] = useState("");
+  } | null>("pending", null);
+  const [insulinId, setInsulinId] = useMealDraftState("insulinId", "");
+  const [manualDose, setManualDose] = useMealDraftState("manualDose", "");
   const [confirmationError, setConfirmationError] = useState<string | null>(null);
-  const [appliedAt, setAppliedAt] = useState(nowLocalInput());
+  const [appliedAt, setAppliedAt] = useMealDraftState("appliedAt", nowLocalInput());
   const [registered, setRegistered] = useState<"performed" | "planned" | "meal" | null>(null);
   const submitting = useRef(false);
   const toggleFav = useStoreMutation((s, _p, v: { id: string; fav: boolean }) =>
@@ -144,7 +153,7 @@ function FoodPage() {
   }, [foods.data, q]);
 
   const computed = lines.map((l) => {
-    const g = gramsSchema.safeParse(l.grams);
+    const g = gramsSchema.safeParse(String(measureGrams(l.food, l.grams, l.measure)));
     return {
       line: l,
       valid: g.success,
@@ -171,7 +180,13 @@ function FoodPage() {
   function addFood(f: Food) {
     setLines((ls) => [
       ...ls,
-      { key: crypto.randomUUID(), food: f, grams: "", includesInedible: false },
+      {
+        key: crypto.randomUUID(),
+        food: f,
+        grams: f.portion_grams ? "1" : "",
+        measure: f.portion_grams ? "portion" : "g",
+        includesInedible: false,
+      },
     ]);
     setQ("");
   }
@@ -183,6 +198,11 @@ function FoodPage() {
     setFavName("");
     setEatenAt(nowLocalInput());
     setPending(null);
+    setQ("");
+    setManualDose("");
+    setInsulinId("");
+    dose.setScenarioGlucose("");
+    store.clearMealDraft(draftScope);
   }
 
   function submit() {
@@ -204,7 +224,7 @@ function FoodPage() {
       items: computed.map((c) => c.item!),
       totals: { ...totals, carbs_g: totals.carbs_g },
     };
-    if (mode === "cloud" || (dose.result && dose.reading && dose.result.rounded > 0)) {
+    if (mode === "cloud" || (dose.result && dose.result.rounded > 0)) {
       setInsulinId(rapidOptions[0]?.id ?? "");
       setManualDose("");
       setConfirmationError(null);
@@ -213,7 +233,7 @@ function FoodPage() {
         meal,
         requestId: crypto.randomUUID(),
         dose: mode === "demo" ? dose.result!.rounded : 0,
-        glucose: mode === "demo" ? dose.reading!.value_mgdl : null,
+        glucose: mode === "demo" ? Number(dose.scenarioGlucose.replace(",", ".")) : null,
         purpose: mode === "demo" && dose.result!.correction > 0 ? "combined" : "meal",
       });
       return;
@@ -345,6 +365,17 @@ function FoodPage() {
         </Notice>
       </details>
 
+      {!readOnly &&
+        (draftError ? (
+          <p role="alert" className="text-sm text-destructive">
+            Não foi possível salvar ou recuperar o rascunho neste navegador. Mantenha esta página
+            aberta até registrar a refeição.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Rascunho salvo neste navegador até a confirmação da refeição.
+          </p>
+        ))}
       <div className="food-workspace">
         <div className="food-search space-y-5">
           <section>
@@ -533,8 +564,8 @@ function FoodPage() {
                   <div className="mt-2 flex items-center gap-2">
                     <Input
                       inputMode="decimal"
-                      aria-label={`Quantidade em gramas de ${line.food.name}`}
-                      placeholder="Gramas"
+                      aria-label={`Quantidade de ${line.food.name}`}
+                      placeholder="Quantidade"
                       className="h-11 w-28 text-base"
                       value={line.grams}
                       onChange={(e) =>
@@ -546,13 +577,36 @@ function FoodPage() {
                       }
                       aria-invalid={!!error && line.grams !== ""}
                     />
-                    <span className="text-sm text-muted-foreground">g</span>
+                    <select
+                      aria-label={`Medida de ${line.food.name}`}
+                      className={selectCls}
+                      value={line.measure ?? "g"}
+                      onChange={(e) =>
+                        setLines(
+                          lines.map((l) =>
+                            l.key === line.key ? { ...l, measure: e.target.value, grams: "" } : l,
+                          ),
+                        )
+                      }
+                    >
+                      {foodMeasures(line.food).map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
                     {item && (
                       <span className="ml-auto text-right text-sm font-bold">
                         {fmtNum(item.carbs_g)} g carb
                       </span>
                     )}
                   </div>
+                  {line.measure && line.measure !== "g" && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {foodMeasures(line.food).find((m) => m.id === line.measure)?.source} ·{" "}
+                      {item ? fmtNum(item.grams) + " g no total" : "Informe a quantidade"}
+                    </p>
+                  )}
                   {error && line.grams !== "" && (
                     <p role="alert" className="mt-1 text-sm text-destructive">
                       {error}
@@ -687,7 +741,7 @@ function FoodPage() {
                 </div>
                 {mode === "demo" && (
                   <div>
-                    <dt>Glicemia do monitor</dt>
+                    <dt>Glicemia informada</dt>
                     <dd>{fmtNum(pending.glucose)} mg/dL</dd>
                   </div>
                 )}

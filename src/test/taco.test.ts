@@ -12,7 +12,7 @@ describe("TACO local", () => {
     for (const [index, food] of tacoFoods.entries()) {
       const original = taco.alimentos[index]!;
       for (const field of Object.keys(food) as Array<keyof typeof food>) {
-        expect(food[field]).toEqual(original[field]);
+        expect(food[field]).toEqual((original as Record<string, unknown>)[field]);
       }
       expect(food.source).toBe("TACO");
       expect(food.patient_id).toBeNull();

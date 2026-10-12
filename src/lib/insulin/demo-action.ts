@@ -109,6 +109,7 @@ export function demoActionApplications(
       !profile ||
       a.status !== "performed" ||
       !a.confirmed_by_user ||
+      a.deleted_at ||
       a.is_superseded ||
       !Number.isFinite(start) ||
       !Number.isFinite(a.dose_units) ||

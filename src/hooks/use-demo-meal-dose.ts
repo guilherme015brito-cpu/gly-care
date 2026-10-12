@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMealDraftState } from "./use-meal-draft";
 import { usePatientStore } from "@/lib/app-context";
 import { calculateDemoDose, decimal, demoParameters } from "@/lib/demo-dose";
 import { useGlucose, useSettings } from "./use-data";
@@ -11,24 +11,21 @@ export function useDemoMealDose(
   mealType?: MealType,
 ) {
   const { mode } = usePatientStore();
-  const glucose = useGlucose(24, mode === "demo");
+  const glucose = useGlucose(24);
   const settings = useSettings();
-  const [increment, setIncrement] = useState(0.5);
-  const [scenarioGlucose, setScenarioGlucose] = useState("");
-  const reading =
-    mode === "demo" ? glucose.data?.filter((r) => r.quality !== "invalid").at(-1) : undefined;
+  const [increment, setIncrement] = useMealDraftState("increment", 0.5);
+  const [scenarioGlucose, setScenarioGlucose] = useMealDraftState("scenarioGlucose", "");
+  const reading = glucose.data?.filter((r) => r.quality !== "invalid").at(-1);
   const parameters = settings.data ? demoParameters(settings.data, new Date(at), mealType) : null;
   const result =
     complete &&
-    !glucose.error &&
     !settings.error &&
     parameters &&
     !("error" in parameters) &&
-    parameters.kind === "meal" &&
-    (mode === "cloud" || (reading && reading.source !== "external"))
+    parameters.kind === "meal"
       ? calculateDemoDose(
           carbs,
-          mode === "cloud" ? decimal(scenarioGlucose) : reading!.value_mgdl,
+          decimal(scenarioGlucose),
           parameters.target,
           parameters.sensitivity,
           parameters.ratio,
@@ -47,7 +44,8 @@ export function useDemoMealDose(
     scenarioGlucose,
     setScenarioGlucose,
     isLoading: glucose.isLoading || settings.isLoading,
-    error: glucose.error ?? settings.error,
+    error: settings.error,
+    readingError: glucose.error,
   };
 }
 
