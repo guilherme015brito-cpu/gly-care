@@ -13,6 +13,7 @@ import {
 } from "@/lib/demo-dose";
 import type { GlucoseReading } from "@/lib/domain/types";
 import { fmtDateTime, fmtNum, MEAL_LABEL } from "@/lib/domain/labels";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, inputCls } from "./form";
 import { ErrorState, LoadingState } from "./ui-bits";
@@ -49,7 +50,7 @@ export function DemoDoseCalculator({
   followMonitor = false,
   mealDose,
 }: Props) {
-  const { mode } = usePatientStore();
+  const { mode, readOnly } = usePatientStore();
   const settings = useSettings();
   const [glucoseOverride, setGlucoseOverride] = useState<string | null>(null);
   const [localIncrement, setLocalIncrement] = useState(0.5);
@@ -258,6 +259,19 @@ export function DemoDoseCalculator({
                   ? "Adicione os alimentos e preencha todas as porções para simular."
                   : "Preencha uma glicemia numérica e não negativa para simular."}
               </p>
+            )}
+            {correctionOnly && result && result.rounded > 0 && !readOnly && (
+              <div className="mt-4 space-y-2">
+                <Button asChild className="w-full">
+                  <Link to="/monitor/insulina/nova" search={{ tipo: "correction" }}>
+                    Registrar aplicação
+                  </Link>
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Informe a dose realmente aplicada e confirme o horário no formulário de registro.
+                  O resultado da simulação não preenche a dose automaticamente.
+                </p>
+              </div>
             )}
           </div>
         </div>

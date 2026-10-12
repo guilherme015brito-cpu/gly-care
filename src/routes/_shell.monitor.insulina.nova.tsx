@@ -16,7 +16,7 @@ import { PURPOSE_LABEL, fmtDateTime, nowLocalInput } from "@/lib/domain/labels";
 import type { AdministrationPurpose, AdministrationStatus } from "@/lib/domain/types";
 
 export const Route = createFileRoute("/_shell/monitor/insulina/nova")({
-  validateSearch: z.object({ corrige: z.string().optional() }),
+  validateSearch: z.object({ corrige: z.string().optional(), tipo: z.enum(["correction"]).optional() }),
   head: () => ({
     meta: [
       { title: "Registrar aplicação de insulina — GlyCare" },
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_shell/monitor/insulina/nova")({
 });
 
 function NewAdministration() {
-  const { corrige } = Route.useSearch();
+  const { corrige, tipo } = Route.useSearch();
   const { readOnly } = usePatientStore();
   const navigate = useNavigate();
   const catalog = useCatalog();
@@ -41,7 +41,7 @@ function NewAdministration() {
     insulin_id: "",
     dose: "",
     administered_at: nowLocalInput(),
-    purpose: "meal" as AdministrationPurpose,
+    purpose: (tipo ?? "meal") as AdministrationPurpose,
     status: "performed" as AdministrationStatus,
     confirmed: false,
     glucose_before: "",
