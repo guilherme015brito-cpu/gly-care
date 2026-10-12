@@ -1,6 +1,14 @@
+import {
+  currentGlucoseAlert,
+  shouldNotifyGlucose,
+  type GlucoseAlertState,
+} from "@/lib/glucose/alerts";
+import { fmtDateTime, fmtNum } from "@/lib/domain/labels";
 import { useEffect, useRef, useState } from "react";
 import { Bell, Check } from "lucide-react";
 import {
+  useGlucose,
+  useSettings,
   useAdministrations,
   useCatalog,
   usePatientInsulins,
@@ -11,7 +19,15 @@ import { Button } from "@/components/ui/button";
 import { ErrorState } from "./ui-bits";
 
 export function BasalReminders() {
-  const { readOnly } = usePatientStore();
+  const { mode, pid } = usePatientStore();
+  return <PatientReminders key={mode + ":" + pid} />;
+}
+
+function PatientReminders() {
+  const { readOnly, mode, pid } = usePatientStore();
+  const glucose = useGlucose(24);
+  const settings = useSettings();
+  const glucoseSent = useRef<GlucoseAlertState | null>(null);
   const plans = usePatientInsulins();
   const catalog = useCatalog();
   const admins = useAdministrations(200);
@@ -24,6 +40,45 @@ export function BasalReminders() {
     const timer = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(timer);
   }, []);
+  const glucoseAlert =
+    !glucose.error && !settings.error && settings.data
+      ? currentGlucoseAlert(glucose.data ?? [], settings.data, mode, pid, now)
+      : null;
+  useEffect(() => {
+    if (!notifications || !registration.current || !glucoseAlert) return;
+    if (glucoseAlert.band === "in_range") {
+      glucoseSent.current = { key: glucoseAlert.key, band: "in_range", sentAt: now };
+      return;
+    }
+    if (!shouldNotifyGlucose(glucoseAlert, glucoseSent.current, now)) return;
+    const previous = glucoseSent.current;
+    const candidate = { key: glucoseAlert.key, band: glucoseAlert.band, sentAt: now };
+    glucoseSent.current = candidate;
+    const low = glucoseAlert.band === "low" || glucoseAlert.band === "very_low";
+    const severe = glucoseAlert.band === "very_low" || glucoseAlert.band === "very_high";
+    const title =
+      (mode === "demo" ? "Demonstração: " : "GlyCare: ") +
+      (low ? "alerta de hipoglicemia" : "alerta de hiperglicemia") +
+      (severe ? " — valor muito fora da faixa" : "");
+    Promise.resolve()
+      .then(() =>
+        registration.current!.showNotification(title, {
+          body:
+            fmtNum(glucoseAlert.reading.value_mgdl) +
+            " mg/dL · " +
+            fmtDateTime(glucoseAlert.reading.measured_at) +
+            ". Abra o monitor para conferir a leitura.",
+          tag: "glycare-glucose-" + mode + "-" + pid,
+        }),
+      )
+      .catch(() => {
+        if (glucoseSent.current === candidate) glucoseSent.current = previous;
+        setNotifications(false);
+        setNotificationError(
+          "Não foi possível exibir o alerta de glicemia. Confira a permissão do navegador e tente ativar novamente.",
+        );
+      });
+  }, [notifications, glucoseAlert, now, mode, pid]);
   const due = (plans.data ?? [])
     .filter((p) => p.active && p.role === "basal")
     .flatMap((p) => {
@@ -77,19 +132,20 @@ export function BasalReminders() {
     if (!s.confirmScheduledBasal) throw new Error("Confirmacao indisponivel.");
     await s.confirmScheduledBasal(v.id, v.time, new Date().toISOString());
   }, "Aplicacao confirmada");
-  if (!plans.data?.some((p) => p.active && p.daily_schedule?.length)) return null;
+  const hasBasal = plans.data?.some((p) => p.active && p.daily_schedule?.length);
   return (
-    <section className="space-y-3 border-t py-4" aria-label="Lembretes de basal">
+    <section className="space-y-3 border-t py-4" aria-label="Alertas de glicemia e basal">
       <h2 className="flex items-center gap-2 font-semibold">
         <Bell size={17} />
-        Basal: registros de hoje
+        Alertas de glicemia e insulina
       </h2>
       <p className="text-xs text-muted-foreground">
         Confira o historico antes de confirmar; uma aplicacao registrada manualmente pode nao estar
-        vinculada ao lembrete. Alertas deste recurso funcionam apenas com o aplicativo aberto. Nao
-        substituem alarmes ou orientacao da equipe de saude.
+        vinculada ao lembrete. Alertas de hipo e hiperglicemia usam os limites configurados para o
+        paciente e funcionam enquanto esta tela de monitoramento está aberta. Nao substituem alarmes
+        ou orientacao da equipe de saude.
       </p>
-      {!readOnly && (
+      {
         <Button
           variant="outline"
           disabled={notifications}
@@ -113,7 +169,35 @@ export function BasalReminders() {
           <Bell aria-hidden />
           {notifications ? "Alertas nesta sessao ativados" : "Ativar alertas nesta sessao"}
         </Button>
+      }
+      {settings.data && (
+        <p className="text-sm">
+          Hipo: abaixo de {settings.data.target_low_mgdl} mg/dL · Hiper: acima de{" "}
+          {settings.data.target_high_mgdl} mg/dL. Limites ajustáveis em Configurações → Paciente.
+        </p>
       )}
+      {glucoseAlert && glucoseAlert.band !== "in_range" && (
+        <p role="alert" className="rounded-md bg-danger-soft p-3 font-semibold text-destructive">
+          {mode === "demo" ? "Demonstração · " : ""}
+          {glucoseAlert.band === "low" || glucoseAlert.band === "very_low"
+            ? "Glicemia baixa"
+            : "Glicemia alta"}
+          : {fmtNum(glucoseAlert.reading.value_mgdl)} mg/dL ·{" "}
+          {fmtDateTime(glucoseAlert.reading.measured_at)}
+        </p>
+      )}
+      {!glucoseAlert &&
+        !glucose.isLoading &&
+        !settings.isLoading &&
+        !glucose.error &&
+        !settings.error && (
+          <p role="status" className="text-sm">
+            Sem leitura recente e válida para os alertas de glicemia.
+          </p>
+        )}
+      {glucose.error && <ErrorState error={glucose.error} />}
+      {settings.error && <ErrorState error={settings.error} />}
+      {hasBasal && <h3 className="font-semibold">Basal: registros de hoje</h3>}
       {plans.error && <ErrorState error={plans.error} />}
       {notificationError && (
         <p role="alert" className="text-sm">
@@ -151,7 +235,7 @@ export function BasalReminders() {
           )}
         </div>
       ))}
-      {!due.length && !admins.isLoading && !admins.error && (
+      {hasBasal && !due.length && !admins.isLoading && !admins.error && (
         <p className="text-sm">Nenhum registro agendado pendente neste momento.</p>
       )}
     </section>
