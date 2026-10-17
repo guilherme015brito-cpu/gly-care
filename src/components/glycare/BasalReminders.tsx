@@ -1,3 +1,11 @@
+import { InjectionSiteField } from "./InjectionSiteField";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   currentGlucoseAlert,
   shouldNotifyGlucose,
@@ -128,10 +136,20 @@ function PatientReminders() {
       }
     }
   }, [notifications, due, admins.isLoading, admins.error]);
-  const save = useStoreMutation(async (s, _pid, v: { id: string; time: string }) => {
-    if (!s.confirmScheduledBasal) throw new Error("Confirmacao indisponivel.");
-    await s.confirmScheduledBasal(v.id, v.time, new Date().toISOString());
-  }, "Aplicacao confirmada");
+  const [confirmation, setConfirmation] = useState<{
+    id: string;
+    time: string;
+    at: string;
+    dose: number;
+  } | null>(null);
+  const [injectionSite, setInjectionSite] = useState("");
+  const save = useStoreMutation(
+    async (s, _pid, v: { id: string; time: string; at: string; site: string }) => {
+      if (!s.confirmScheduledBasal) throw new Error("Confirmacao indisponivel.");
+      await s.confirmScheduledBasal(v.id, v.time, v.at, v.site);
+    },
+    "Aplicacao confirmada",
+  );
   const hasBasal = plans.data?.some((p) => p.active && p.daily_schedule?.length);
   return (
     <section className="space-y-3 border-t py-4" aria-label="Alertas de glicemia e basal">
@@ -221,12 +239,13 @@ function PatientReminders() {
             <Button
               disabled={save.isPending || admins.isLoading || !!admins.error}
               onClick={() => {
-                if (
-                  window.confirm(
-                    "A aplicacao foi realmente realizada agora? Confira se ainda nao foi registrada no historico.",
-                  )
-                )
-                  save.mutate({ id: x.p.id, time: x.s.time });
+                setInjectionSite("");
+                setConfirmation({
+                  id: x.p.id,
+                  time: x.s.time,
+                  at: new Date().toISOString(),
+                  dose: x.s.dose,
+                });
               }}
             >
               <Check aria-hidden />
@@ -238,6 +257,45 @@ function PatientReminders() {
       {hasBasal && !due.length && !admins.isLoading && !admins.error && (
         <p className="text-sm">Nenhum registro agendado pendente neste momento.</p>
       )}
+      <Dialog
+        open={!!confirmation}
+        onOpenChange={(open) => {
+          if (!open && !save.isPending) setConfirmation(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar aplicação basal</DialogTitle>
+            <DialogDescription>
+              Confira a dose, o horário e o local efetivamente utilizado.
+            </DialogDescription>
+          </DialogHeader>
+          {confirmation && (
+            <>
+              <p>
+                {confirmation.dose} UI · {fmtDateTime(confirmation.at)}
+              </p>
+              <InjectionSiteField
+                value={injectionSite}
+                onChange={setInjectionSite}
+                at={confirmation.at}
+              />
+              {save.error && <ErrorState error={save.error} />}
+              <Button
+                disabled={!injectionSite || save.isPending}
+                onClick={() =>
+                  save.mutate(
+                    { ...confirmation, site: injectionSite },
+                    { onSuccess: () => setConfirmation(null) },
+                  )
+                }
+              >
+                Confirmo que a aplicação ocorreu
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

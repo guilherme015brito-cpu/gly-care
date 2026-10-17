@@ -1,3 +1,4 @@
+import { INJECTION_SITES } from "./injection-sites";
 import { z } from "zod";
 import { visualProfileSchema } from "./insulin/config";
 
@@ -56,7 +57,9 @@ export const administrationSchema = z
         (n) => n == null || (n >= 10 && n <= 1000),
         "Glicemia fora do intervalo aceito (10–1000)",
       ),
-    injection_site: optText(60),
+    injection_site: z.enum(INJECTION_SITES, {
+      errorMap: () => ({ message: "Selecione o local da aplicação" }),
+    }),
     notes: optText(1000),
     recorded_by_name: optText(100),
   })

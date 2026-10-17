@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ShellPlanoAlimentarRouteImport } from './routes/_shell.plano-alimentar'
 import { Route as ShellAlimentacaoIndexRouteImport } from './routes/_shell.alimentacao.index'
 import { Route as ShellAlimentacaoHistoricoRouteImport } from './routes/_shell.alimentacao.historico'
 import { Route as ShellAlimentacaoNovoRouteImport } from './routes/_shell.alimentacao.novo'
@@ -40,6 +41,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ShellPlanoAlimentarRoute = ShellPlanoAlimentarRouteImport.update({
+  id: '/plano-alimentar',
+  path: '/plano-alimentar',
+  getParentRoute: () => ShellRoute,
 } as any)
 const ShellAlimentacaoIndexRoute = ShellAlimentacaoIndexRouteImport.update({
   id: '/alimentacao/',
@@ -118,6 +124,7 @@ const ShellMonitorInsulinaNovaRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/plano-alimentar': typeof ShellPlanoAlimentarRoute
   '/alimentacao/historico': typeof ShellAlimentacaoHistoricoRoute
   '/alimentacao/novo': typeof ShellAlimentacaoNovoRoute
   '/config/conexao': typeof ShellConfigConexaoRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/plano-alimentar': typeof ShellPlanoAlimentarRoute
   '/alimentacao/historico': typeof ShellAlimentacaoHistoricoRoute
   '/alimentacao/novo': typeof ShellAlimentacaoNovoRoute
   '/config/conexao': typeof ShellConfigConexaoRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_shell': typeof ShellRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_shell/plano-alimentar': typeof ShellPlanoAlimentarRoute
   '/_shell/alimentacao/historico': typeof ShellAlimentacaoHistoricoRoute
   '/_shell/alimentacao/novo': typeof ShellAlimentacaoNovoRoute
   '/_shell/config/conexao': typeof ShellConfigConexaoRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/plano-alimentar'
     | '/alimentacao/historico'
     | '/alimentacao/novo'
     | '/config/conexao'
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/plano-alimentar'
     | '/alimentacao/historico'
     | '/alimentacao/novo'
     | '/config/conexao'
@@ -213,6 +224,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_shell'
     | '/auth'
+    | '/_shell/plano-alimentar'
     | '/_shell/alimentacao/historico'
     | '/_shell/alimentacao/novo'
     | '/_shell/config/conexao'
@@ -257,6 +269,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_shell/plano-alimentar': {
+      id: '/_shell/plano-alimentar'
+      path: '/plano-alimentar'
+      fullPath: '/plano-alimentar'
+      preLoaderRoute: typeof ShellPlanoAlimentarRouteImport
+      parentRoute: typeof ShellRoute
     }
     '/_shell/alimentacao/': {
       id: '/_shell/alimentacao/'
@@ -360,6 +379,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface ShellRouteChildren {
+  ShellPlanoAlimentarRoute: typeof ShellPlanoAlimentarRoute
   ShellAlimentacaoHistoricoRoute: typeof ShellAlimentacaoHistoricoRoute
   ShellAlimentacaoNovoRoute: typeof ShellAlimentacaoNovoRoute
   ShellConfigConexaoRoute: typeof ShellConfigConexaoRoute
@@ -377,6 +397,7 @@ interface ShellRouteChildren {
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
+  ShellPlanoAlimentarRoute: ShellPlanoAlimentarRoute,
   ShellAlimentacaoHistoricoRoute: ShellAlimentacaoHistoricoRoute,
   ShellAlimentacaoNovoRoute: ShellAlimentacaoNovoRoute,
   ShellConfigConexaoRoute: ShellConfigConexaoRoute,

@@ -110,7 +110,7 @@ describe("Illustrative insulin action, not IOB", () => {
           confirmed: true,
           glucose_before: 180,
           notes: null,
-          injection_site: null,
+          injection_site: "Braço",
           recorded_by_name: null,
         },
       ),

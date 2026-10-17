@@ -1,3 +1,5 @@
+import { InjectionSiteField } from "@/components/glycare/InjectionSiteField";
+import type { InjectionSite } from "@/lib/injection-sites";
 import { useMealDraftError, useMealDraftScope, useMealDraftState } from "@/hooks/use-meal-draft";
 import { foodMeasures, measureGrams } from "@/lib/food-measures";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -123,6 +125,7 @@ function MealComposer() {
   } | null>("pending", null);
   const [insulinId, setInsulinId] = useMealDraftState("insulinId", "");
   const [manualDose, setManualDose] = useMealDraftState("manualDose", "");
+  const [injectionSite, setInjectionSite] = useMealDraftState("injectionSite", "");
   const [confirmationError, setConfirmationError] = useState<string | null>(null);
   const [appliedAt, setAppliedAt] = useMealDraftState("appliedAt", nowLocalInput());
   const [registered, setRegistered] = useState<"performed" | "planned" | "meal" | null>(null);
@@ -200,6 +203,7 @@ function MealComposer() {
     setPending(null);
     setQ("");
     setManualDose("");
+    setInjectionSite("");
     setInsulinId("");
     dose.setScenarioGlucose("");
     store.clearMealDraft(draftScope);
@@ -252,6 +256,10 @@ function MealComposer() {
 
   function confirmMeal(applied: boolean) {
     if (!pending || submitting.current || !rapidOptions.some((r) => r.id === insulinId)) return;
+    if (!injectionSite) {
+      setConfirmationError("Selecione o local da aplicação.");
+      return;
+    }
     const actual = new Date(appliedAt).getTime();
     if (applied && (!Number.isFinite(actual) || actual > Date.now() + 5 * 60000)) return;
     const entered =
@@ -264,6 +272,7 @@ function MealComposer() {
             status: applied ? "performed" : "planned",
             confirmed: applied,
             glucose_before: "",
+            injection_site: injectionSite,
             recorded_by_name: "Registro manual",
           })
         : null;
@@ -284,7 +293,7 @@ function MealComposer() {
           status: applied ? "performed" : "planned",
           confirmed: applied,
           glucose_before: pending.glucose,
-          injection_site: null,
+          injection_site: injectionSite as InjectionSite,
           recorded_by_name: mode === "demo" ? "Demonstração" : "Registro manual",
           notes: `Refeição: ${MEAL_LABEL[pending.meal.meal_type]} · ${fmtNum(pending.meal.totals.carbs_g)} g de carboidratos.`,
         },
@@ -778,6 +787,11 @@ function MealComposer() {
                   ))}
                 </select>
               </Field>
+              <InjectionSiteField
+                value={injectionSite}
+                onChange={setInjectionSite}
+                at={appliedAt}
+              />
               <Field id="meal-applied-at" label="Horário efetivo da aplicação">
                 <Input
                   id="meal-applied-at"

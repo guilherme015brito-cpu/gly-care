@@ -70,6 +70,9 @@ describe("Correction calculator registration destination", () => {
     fireEvent.click(screen.getByRole("button", { name: "Revisar e salvar" }));
     expect(save).not.toHaveBeenCalled();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText("Local da aplicação"), {
+      target: { value: "Braço" },
+    });
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: "Revisar e salvar" }));
     expect(await screen.findByRole("alertdialog")).toBeInTheDocument();

@@ -14,6 +14,7 @@ const schema = z.object({
   favName: z.string().optional(),
   insulinId: z.string().optional(),
   manualDose: z.string().optional(),
+  injectionSite: z.string().optional(),
   scenarioGlucose: z.string().optional(),
   eatenAt: z.string().optional(),
   appliedAt: z.string().optional(),
