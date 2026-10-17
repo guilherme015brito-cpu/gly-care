@@ -85,6 +85,10 @@ describe("Alimentação with local TACO", () => {
       target: { value: "147" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    if (screen.queryByLabelText("Local da aplicação")) {
+      await waitFor(() => expect(screen.getByLabelText("Local da aplicação")).toBeEnabled());
+      fireEvent.change(screen.getByLabelText("Local da aplicação"), { target: { value: "Braço" } });
+    }
     fireEvent.change(await screen.findByLabelText("Dose informada (UI)"), {
       target: { value: "2,5" },
     });
@@ -137,7 +141,9 @@ describe("Alimentação with local TACO", () => {
       await store.listCatalog(),
     );
     expect(applications).toHaveLength(0);
-    await expect(store.markAdministrationPerformed(original.id)).rejects.toThrow();
+    await expect(
+      store.markAdministrationPerformed(original.id, new Date().toISOString(), "Braço"),
+    ).rejects.toThrow();
     await expect(store.deleteAdministration("different-patient", original.id)).rejects.toThrow();
   });
 
@@ -199,6 +205,10 @@ describe("Alimentação with local TACO", () => {
     expect(screen.getByText("5,5")).toBeInTheDocument();
     const before = (await store.listMeals("demo-patient")).length;
     fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    if (screen.queryByLabelText("Local da aplicação")) {
+      await waitFor(() => expect(screen.getByLabelText("Local da aplicação")).toBeEnabled());
+      fireEvent.change(screen.getByLabelText("Local da aplicação"), { target: { value: "Braço" } });
+    }
     expect(
       await screen.findByRole("dialog", { name: "A insulina foi aplicada?" }),
     ).toBeInTheDocument();
@@ -233,6 +243,10 @@ describe("Alimentação with local TACO", () => {
     );
     const before = (await store.listAdministrations("demo-patient")).length;
     fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    if (screen.queryByLabelText("Local da aplicação")) {
+      await waitFor(() => expect(screen.getByLabelText("Local da aplicação")).toBeEnabled());
+      fireEvent.change(screen.getByLabelText("Local da aplicação"), { target: { value: "Braço" } });
+    }
     fireEvent.click(await screen.findByRole("button", { name: "Não, registrar pendente" }));
     await screen.findByText("Refeição registrada. A aplicação ficou pendente.");
     const pending = (await store.listAdministrations("demo-patient")).find(
@@ -266,7 +280,7 @@ describe("Alimentação with local TACO", () => {
     expect(
       demoActionApplications(admins, catalog).some((a) => a.administration.id === pending.id),
     ).toBe(true);
-    await store.markAdministrationPerformed(pending.id);
+    await store.markAdministrationPerformed(pending.id, new Date().toISOString(), "Braço");
     expect(
       (await store.listAdministrations("demo-patient")).find((a) => a.id === pending.id)
         ?.administered_at,
@@ -284,6 +298,10 @@ describe("Alimentação with local TACO", () => {
       expect(screen.getByRole("button", { name: "Registrar refeição" })).toBeEnabled(),
     );
     fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    if (screen.queryByLabelText("Local da aplicação")) {
+      await waitFor(() => expect(screen.getByLabelText("Local da aplicação")).toBeEnabled());
+      fireEvent.change(screen.getByLabelText("Local da aplicação"), { target: { value: "Braço" } });
+    }
     fireEvent.click(await screen.findByRole("button", { name: "Voltar à refeição" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(await store.listMeals("demo-patient")).toHaveLength(beforeMeals);
@@ -328,6 +346,10 @@ describe("Alimentação with local TACO", () => {
     fireEvent.change(screen.getByLabelText("Glicemia (mg/dL)"), { target: { value: "210" } });
     fireEvent.change(screen.getByLabelText("Arredondamento (UI)"), { target: { value: "1" } });
     fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    if (screen.queryByLabelText("Local da aplicação")) {
+      await waitFor(() => expect(screen.getByLabelText("Local da aplicação")).toBeEnabled());
+      fireEvent.change(screen.getByLabelText("Local da aplicação"), { target: { value: "Braço" } });
+    }
     const button = await screen.findByRole("button", { name: "Sim, registrar aplicação" });
     fireEvent.click(button);
     fireEvent.click(button);
@@ -354,6 +376,10 @@ describe("Alimentação with local TACO", () => {
       expect(screen.getByRole("button", { name: "Registrar refeição" })).toBeEnabled(),
     );
     fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    if (screen.queryByLabelText("Local da aplicação")) {
+      await waitFor(() => expect(screen.getByLabelText("Local da aplicação")).toBeEnabled());
+      fireEvent.change(screen.getByLabelText("Local da aplicação"), { target: { value: "Braço" } });
+    }
     fireEvent.click(await screen.findByRole("button", { name: "Sim, registrar aplicação" }));
     await screen.findByText("Falha de teste: nada foi registrado");
     expect(screen.getByRole("dialog", { name: "A insulina foi aplicada?" })).toBeInTheDocument();
@@ -376,6 +402,10 @@ describe("Alimentação with local TACO", () => {
       expect(screen.getByRole("button", { name: "Registrar refeição" })).toBeEnabled(),
     );
     fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+    if (screen.queryByLabelText("Local da aplicação")) {
+      await waitFor(() => expect(screen.getByLabelText("Local da aplicação")).toBeEnabled());
+      fireEvent.change(screen.getByLabelText("Local da aplicação"), { target: { value: "Braço" } });
+    }
     await screen.findByText("Refeição registrada sem aplicação.");
     expect(await store.listAdministrations("demo-patient")).toHaveLength(before);
   });
@@ -432,6 +462,12 @@ describe("Alimentação with local TACO", () => {
         target: { value: "180" },
       });
       fireEvent.click(screen.getByRole("button", { name: "Registrar refeição" }));
+      if (screen.queryByLabelText("Local da aplicação")) {
+        await waitFor(() => expect(screen.getByLabelText("Local da aplicação")).toBeEnabled());
+        fireEvent.change(screen.getByLabelText("Local da aplicação"), {
+          target: { value: "Braço" },
+        });
+      }
       expect(await screen.findByLabelText("Dose informada (UI)")).toHaveValue("");
       expect(screen.queryByText("Dose calculada")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Sim, registrar aplicação" })).toBeDisabled();

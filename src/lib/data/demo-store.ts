@@ -1,3 +1,5 @@
+import { injectionContext, requireInjectionSite } from "../injection-sites";
+import { mealPlanSchema, type MealPlan, type MealPlanInput } from "../meal-plans";
 import { readMealDraft, writeMealDraft, clearMealDraft } from "./meal-draft";
 // In-memory demo store. Data is SIMULATED and lives only in this browser tab.
 // Nothing here is persisted (no localStorage / IndexedDB) by design.
@@ -80,6 +82,7 @@ class DemoStore implements DataStore {
   private ketones: KetoneReading[] = [];
   private foods: Food[] = seedFoods();
   private meals: MealEntry[] = [];
+  private mealPlans: MealPlan[] = [];
   private settings: ClinicalSettings = {
     patient_id: DEMO_PID,
     ...DEFAULT_SETTINGS,
@@ -378,7 +381,7 @@ class DemoStore implements DataStore {
       visual_profile: i.visual_profile ?? null,
     });
   }
-  async confirmScheduledBasal(id: string, time: string, at: string) {
+  async confirmScheduledBasal(id: string, time: string, at: string, injectionSite: string) {
     const p = this.patientInsulins.find((p) => p.id === id && p.active && p.role === "basal");
     const slot = p?.daily_schedule?.find((s) => s.time === time);
     if (!p || !slot) throw new Error("Horario nao encontrado.");
@@ -393,7 +396,9 @@ class DemoStore implements DataStore {
       status: "performed",
       confirmed: true,
       glucose_before: null,
-      injection_site: null,
+      injection_site: injectionSite as Parameters<
+        DataStore["addAdministration"]
+      >[1]["injection_site"],
       notes: tag,
       recorded_by_name: null,
     });
@@ -452,6 +457,10 @@ class DemoStore implements DataStore {
     supersedesId?: string,
     mealId?: string,
   ): InsulinAdministration {
+    requireInjectionSite(
+      injectionContext(this.admins, pid, i.administered_at, supersedesId),
+      i.injection_site,
+    );
     const ins = this.patientInsulins.find((p) => p.insulin_id === i.insulin_id && p.active);
     const row: InsulinAdministration = {
       id: uid(),
@@ -482,7 +491,7 @@ class DemoStore implements DataStore {
     row.deleted_at = new Date().toISOString();
     this.log("insulin_administrations", id, "UPDATE", old, row);
   }
-  async markAdministrationPerformed(id: string, administeredAt = new Date().toISOString()) {
+  async markAdministrationPerformed(id: string, administeredAt: string, injectionSite: string) {
     const a = this.admins.find((x) => x.id === id);
     if (!a || a.is_superseded || a.deleted_at)
       throw new Error("Registro não disponível para confirmação.");
@@ -490,7 +499,12 @@ class DemoStore implements DataStore {
     const at = new Date(administeredAt).getTime();
     if (!Number.isFinite(at) || at > Date.now() + 5 * 60000)
       throw new Error("Informe um horário efetivo válido, não futuro.");
+    requireInjectionSite(
+      injectionContext(this.admins, a.patient_id, administeredAt, id),
+      injectionSite,
+    );
     const prev = { ...a };
+    a.injection_site = injectionSite;
     a.status = "performed";
     a.confirmed_by_user = true;
     a.administered_at = new Date(at).toISOString();
@@ -630,6 +644,37 @@ class DemoStore implements DataStore {
     this.log("insulin_administrations", admin.id, "INSERT", null, admin);
   }
 
+  async getInjectionContext(pid: string, at: string, excludeId?: string) {
+    await this.seed();
+    return injectionContext(this.admins, pid, at, excludeId);
+  }
+  async listMealPlans(pid: string) {
+    return structuredClone(this.mealPlans.filter((p) => p.patient_id === pid));
+  }
+  async saveMealPlan(pid: string, input: MealPlanInput, id: string, expectedVersion: number) {
+    if (pid !== this.patient.id) throw new Error("Paciente inválido.");
+    const data = mealPlanSchema.parse(input);
+    const old = this.mealPlans.find((p) => p.id === id);
+    if ((old?.version ?? 0) !== expectedVersion || (old && old.patient_id !== pid))
+      throw new Error("Plano alterado em outra sessão. Recarregue antes de editar.");
+    const row: MealPlan = {
+      ...data,
+      id,
+      patient_id: pid,
+      version: expectedVersion + 1,
+      updated_at: new Date().toISOString(),
+    };
+    this.mealPlans = [...this.mealPlans.filter((p) => p.id !== id), structuredClone(row)];
+    this.log("meal_plans", id, old ? "UPDATE" : "INSERT", old ?? null, row);
+    return structuredClone(row);
+  }
+  async deleteMealPlan(pid: string, id: string, expectedVersion: number) {
+    const old = this.mealPlans.find((p) => p.id === id && p.patient_id === pid);
+    if (!old || old.version !== expectedVersion)
+      throw new Error("Plano alterado em outra sessão. Recarregue antes de excluir.");
+    this.mealPlans = this.mealPlans.filter((p) => p.id !== id);
+    this.log("meal_plans", id, "DELETE", old, null);
+  }
   async getSettings() {
     return this.settings;
   }

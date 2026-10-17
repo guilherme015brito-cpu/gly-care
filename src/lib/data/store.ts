@@ -1,3 +1,5 @@
+import type { InjectionContext } from "../injection-sites";
+import type { MealPlan, MealPlanInput } from "../meal-plans";
 import type {
   AuditEntry,
   ClinicalSettings,
@@ -42,6 +44,15 @@ export interface NewMeal {
 
 /** Single data-access contract implemented by the in-memory demo and by Lovable Cloud. */
 export interface DataStore {
+  getInjectionContext(pid: string, at: string, excludeId?: string): Promise<InjectionContext>;
+  listMealPlans(pid: string): Promise<MealPlan[]>;
+  saveMealPlan(
+    pid: string,
+    input: MealPlanInput,
+    id: string,
+    expectedVersion: number,
+  ): Promise<MealPlan>;
+  deleteMealPlan(pid: string, id: string, expectedVersion: number): Promise<void>;
   readMealDraft(scope: string): Record<string, unknown>;
   writeMealDraft(scope: string, field: string, value: unknown): void;
   clearMealDraft(scope: string): void;
@@ -64,6 +75,7 @@ export interface DataStore {
     patientInsulinId: string,
     scheduledTime: string,
     administeredAt: string,
+    injectionSite: string,
   ): Promise<void>;
 
   listPatientInsulins(pid: string): Promise<PatientInsulin[]>;
@@ -75,7 +87,11 @@ export interface DataStore {
 
   listAdministrations(pid: string, limit?: number): Promise<InsulinAdministration[]>;
   addAdministration(pid: string, input: AdministrationInput, supersedesId?: string): Promise<void>;
-  markAdministrationPerformed(id: string, administeredAt?: string): Promise<void>;
+  markAdministrationPerformed(
+    id: string,
+    administeredAt: string,
+    injectionSite: string,
+  ): Promise<void>;
 
   listKetones(pid: string, limit?: number): Promise<KetoneReading[]>;
   addKetone(pid: string, input: KetoneInput): Promise<void>;

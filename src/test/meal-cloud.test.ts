@@ -35,7 +35,7 @@ const admin: AdministrationInput = {
   confirmed: true,
   glucose_before: null,
   notes: null,
-  injection_site: null,
+  injection_site: "Braço",
   recorded_by_name: "Manual",
 };
 beforeEach(() => {

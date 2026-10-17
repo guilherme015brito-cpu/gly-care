@@ -1,3 +1,5 @@
+import { InjectionSiteField } from "@/components/glycare/InjectionSiteField";
+import { normalizeInjectionSite } from "@/lib/injection-sites";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { History, Plus, Pencil, CheckCircle2, Trash2 } from "lucide-react";
@@ -58,6 +60,7 @@ function AdminHistory() {
   const [tab, setTab] = useState<"list" | "audit">("list");
   const [pending, setPending] = useState<InsulinAdministration | null>(null);
   const [appliedAt, setAppliedAt] = useState(nowLocalInput());
+  const [injectionSite, setInjectionSite] = useState("");
   const [removing, setRemoving] = useState<InsulinAdministration | null>(null);
   const remove = useStoreMutation(
     (s, pid, id: string) => s.deleteAdministration(pid, id),
@@ -67,7 +70,8 @@ function AdminHistory() {
   const catalog = useCatalog();
   const audit = useAudit();
   const markDone = useStoreMutation(
-    (s, _p, v: { id: string; at: string }) => s.markAdministrationPerformed(v.id, v.at),
+    (s, _p, v: { id: string; at: string; site: string }) =>
+      s.markAdministrationPerformed(v.id, v.at, v.site),
     "Aplicação confirmada no horário informado",
   );
   const name = (id: string) => catalog.data?.find((c) => c.id === id)?.brand_name ?? "Insulina";
@@ -174,6 +178,7 @@ function AdminHistory() {
                             disabled={markDone.isPending}
                             onClick={() => {
                               setAppliedAt(nowLocalInput());
+                              setInjectionSite(normalizeInjectionSite(a.injection_site) ?? "");
                               setPending(a);
                             }}
                           >
@@ -282,17 +287,28 @@ function AdminHistory() {
                   onChange={(e) => setAppliedAt(e.target.value)}
                 />
               </Field>
+              <InjectionSiteField
+                value={injectionSite}
+                onChange={setInjectionSite}
+                at={appliedAt}
+                excludeId={pending.id}
+              />
               {markDone.error && <ErrorState error={markDone.error} />}
               <Button
                 disabled={
                   markDone.isPending ||
+                  !injectionSite ||
                   !Number.isFinite(new Date(appliedAt).getTime()) ||
                   new Date(appliedAt).getTime() > Date.now() + 5 * 60000
                 }
                 onClick={() => {
                   if (!markDone.isPending)
                     markDone.mutate(
-                      { id: pending.id, at: new Date(appliedAt).toISOString() },
+                      {
+                        id: pending.id,
+                        at: new Date(appliedAt).toISOString(),
+                        site: injectionSite,
+                      },
                       { onSuccess: () => setPending(null) },
                     );
                 }}

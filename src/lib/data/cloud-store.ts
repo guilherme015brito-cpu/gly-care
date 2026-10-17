@@ -1,3 +1,5 @@
+import type { InjectionContext } from "../injection-sites";
+import { mealPlanSchema, type MealPlan } from "../meal-plans";
 import { readMealDraft, writeMealDraft, clearMealDraft } from "./meal-draft";
 // Lovable Cloud data store. Uses the browser client with the signed-in session:
 // every query is filtered by Row Level Security on the server.
@@ -34,6 +36,11 @@ function check<T>(res: { data: T; error: { message: string; code?: string } | nu
 }
 
 export function friendlyError(e: { message: string; code?: string }): string {
+  if (e.message.includes("injection_site_required")) return "Selecione o local da aplicação.";
+  if (e.message.includes("injection_rotation_blocked"))
+    return "Rodízio: três aplicações consecutivas nesta região. Selecione outro local.";
+  if (e.message.includes("meal_plan_conflict"))
+    return "Plano alterado em outra sessão. Recarregue antes de editar.";
   if (e.code === "42501" || /row-level security/i.test(e.message))
     return "Você não tem permissão para esta ação.";
   if (e.code === "23514") return "Algum valor está fora do intervalo permitido.";
@@ -90,7 +97,44 @@ const mealWithAdministrationClient = supabase as unknown as {
   ): PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>;
 };
 
+const planningClient = supabase as unknown as {
+  rpc(
+    name: string,
+    args: Record<string, unknown>,
+  ): PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>;
+};
 export const cloudStore: DataStore = {
+  async getInjectionContext(pid, at, excludeId) {
+    return check(
+      await planningClient.rpc("get_injection_context", {
+        p_patient: pid,
+        p_at: at,
+        p_exclude: excludeId ?? null,
+      }),
+    ) as InjectionContext;
+  },
+  async listMealPlans(pid) {
+    return check(await planningClient.rpc("list_meal_plans", { p_patient: pid })) as MealPlan[];
+  },
+  async saveMealPlan(pid, input, id, expectedVersion) {
+    return check(
+      await planningClient.rpc("save_meal_plan", {
+        p_patient: pid,
+        p_id: id,
+        p_plan: mealPlanSchema.parse(input),
+        p_version: expectedVersion,
+      }),
+    ) as MealPlan;
+  },
+  async deleteMealPlan(pid, id, expectedVersion) {
+    check(
+      await planningClient.rpc("delete_meal_plan", {
+        p_patient: pid,
+        p_id: id,
+        p_version: expectedVersion,
+      }),
+    );
+  },
   readMealDraft,
   writeMealDraft,
   clearMealDraft,
@@ -254,7 +298,7 @@ export const cloudStore: DataStore = {
         }),
     );
   },
-  async confirmScheduledBasal(patientInsulinId, scheduledTime, administeredAt) {
+  async confirmScheduledBasal(patientInsulinId, scheduledTime, administeredAt, injectionSite) {
     const client = supabase as unknown as {
       rpc(
         name: string,
@@ -266,6 +310,7 @@ export const cloudStore: DataStore = {
         p_insulin: patientInsulinId,
         p_time: scheduledTime,
         p_administered_at: administeredAt,
+        p_injection_site: injectionSite,
       }),
     );
   },
@@ -326,7 +371,7 @@ export const cloudStore: DataStore = {
   async deleteAdministration(pid, id) {
     check(await supabase.rpc("remove_insulin_administration", { p_patient_id: pid, p_id: id }));
   },
-  async markAdministrationPerformed(id, administeredAt = new Date().toISOString()) {
+  async markAdministrationPerformed(id, administeredAt, injectionSite) {
     const at = new Date(administeredAt).getTime();
     if (!Number.isFinite(at) || at > Date.now() + 5 * 60000)
       throw new Error("Informe um horário efetivo válido, não futuro.");
@@ -335,6 +380,7 @@ export const cloudStore: DataStore = {
         .from("insulin_administrations")
         .update({
           status: "performed",
+          injection_site: injectionSite,
           confirmed_by_user: true,
           administered_at: new Date(at).toISOString(),
         })

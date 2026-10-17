@@ -1,12 +1,21 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Activity, Settings, Utensils, WifiOff, FlaskConical, Eye } from "lucide-react";
+import {
+  Activity,
+  CalendarDays,
+  Settings,
+  Utensils,
+  WifiOff,
+  FlaskConical,
+  Eye,
+} from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { useOnline } from "@/hooks/use-online";
 
 const TABS = [
   { to: "/monitor", label: "Monitoramento", icon: Activity },
   { to: "/alimentacao", label: "Alimentação", icon: Utensils },
+  { to: "/plano-alimentar", label: "Plano alimentar", icon: CalendarDays },
   { to: "/config", label: "Configurações", icon: Settings },
 ] as const;
 
