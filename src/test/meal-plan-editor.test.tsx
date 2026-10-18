@@ -76,3 +76,31 @@ it("creates a menu, edits portions and selection, saves and restores it after re
   expect(screen.getByLabelText("Medida")).toHaveValue("spoon");
   expect((await store.listMealPlans("demo-patient"))[0]?.meals[0]?.name).toBe("Almoço planejado");
 });
+it("saves a personalized yogurt ladle and restores the same weight and totals", async () => {
+  mount();
+  await screen.findByText("Crie seu primeiro cardápio para começar.");
+  fireEvent.change(screen.getByLabelText("Nome do cardápio"), {
+    target: { value: "Lanche com iogurte" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Adicionar refeição" }));
+  fireEvent.change(screen.getByLabelText("Adicionar alimento"), {
+    target: { value: "Iogurte, natural" },
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Iogurte, natural TACO" }));
+  fireEvent.click(screen.getByText("Personalizar medida"));
+  expect(screen.getByLabelText("Medida personalizada")).toHaveValue("concha");
+  fireEvent.change(screen.getByLabelText("Peso de 1 medida (g)"), { target: { value: "83" } });
+  fireEvent.click(screen.getByRole("button", { name: "Aplicar medida" }));
+  fireEvent.change(screen.getByLabelText("Quantidade"), { target: { value: "2" } });
+  expect(screen.getByText(/166 g no total/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Salvar cardápio" }));
+  await screen.findByText("Cardápio salvo.");
+  cleanup();
+  mount();
+  await waitFor(() =>
+    expect(screen.getByLabelText("Nome do cardápio")).toHaveValue("Lanche com iogurte"),
+  );
+  expect(screen.getByLabelText("Medida")).toHaveValue("registered-unit");
+  expect(screen.getByLabelText("Quantidade")).toHaveValue("2");
+  expect(screen.getByText(/166 g no total/)).toBeInTheDocument();
+});

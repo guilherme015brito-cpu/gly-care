@@ -1,4 +1,5 @@
 import { INJECTION_SITES } from "./injection-sites";
+import { PORTION_UNIT_IDS } from "./portion-units";
 import { z } from "zod";
 import { visualProfileSchema } from "./insulin/config";
 
@@ -177,7 +178,7 @@ export const foodSchema = z
     source: z.enum(["manual", "recipe"]),
     source_reference: optText(300),
     portion_amount: z.number().finite().positive().max(5000).default(100),
-    portion_unit: z.enum(["g", "ml", "colher", "colher_sopa", "concha"]).default("g"),
+    portion_unit: z.enum(PORTION_UNIT_IDS).default("g"),
     portion_grams: z.number().finite().positive().max(5000).default(100),
     carbs_per_100g: optNutrient,
     protein_per_100g: optNutrient,

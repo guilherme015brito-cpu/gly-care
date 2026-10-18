@@ -1,12 +1,7 @@
 import type { Food } from "./domain/types";
-
-export const PORTION_UNITS = {
-  g: "g",
-  ml: "ml",
-  colher: "colher",
-  colher_sopa: "colher de sopa",
-  concha: "concha",
-} as const;
+import { PORTION_UNITS } from "./portion-units";
+import { ADDITIONAL_HOUSEHOLD } from "./household-measures";
+export { PORTION_UNITS } from "./portion-units";
 const SOURCE = "SBD, Manual de Contagem de Carboidratos 2023 · peso aproximado";
 export const MEASURE_SOURCE_URL =
   "https://diabetes.org.br/wp-content/uploads/2023/10/manual-contagem-carboidratos2023.pdf";
@@ -15,6 +10,7 @@ export interface FoodMeasure {
   label: string;
   grams: number;
   source: string;
+  sourceUrl?: string;
 }
 // Explicit food/preparation matches only; no universal spoon-to-grams conversion.
 const spoon = (grams: number): FoodMeasure => ({
@@ -52,22 +48,45 @@ export function foodMeasures(food: Food): FoodMeasure[] {
   const result: FoodMeasure[] = [
     { id: "g", label: "Gramas (g)", grams: 1, source: "Peso informado" },
   ];
-  if (food.portion_grams && food.portion_amount && food.portion_unit) {
+  if (
+    Number.isFinite(food.portion_grams) &&
+    Number.isFinite(food.portion_amount) &&
+    food.portion_grams! > 0 &&
+    food.portion_amount! > 0 &&
+    food.portion_unit &&
+    PORTION_UNITS[food.portion_unit]
+  ) {
+    const portionGrams = food.portion_grams!,
+      portionAmount = food.portion_amount!;
     result.push({
       id: "portion",
-      label: `Unidade (${food.portion_amount} ${PORTION_UNITS[food.portion_unit]})`,
-      grams: food.portion_grams,
+      label: `Porção (${food.portion_amount} ${PORTION_UNITS[food.portion_unit]} · ${food.portion_grams} g)`,
+      grams: portionGrams,
       source: "Porção cadastrada",
     });
+    if (food.portion_unit !== "g" && food.portion_unit !== "ml") {
+      const grams = portionGrams / portionAmount;
+      result.push({
+        id: "registered-unit",
+        label: `${PORTION_UNITS[food.portion_unit]} (≈ ${Number(grams.toFixed(2))} g · informada)`,
+        grams,
+        source: "Peso informado por você; confira a porção ou o rótulo",
+      });
+    }
     if (food.portion_unit === "ml")
       result.push({
         id: "ml",
         label: "Mililitros (ml)",
-        grams: food.portion_grams / food.portion_amount,
+        grams: portionGrams / portionAmount,
         source: "Relação peso/volume cadastrada",
       });
   }
-  if (food.source === "TACO") result.push(...(HOUSEHOLD[food.name] ?? []));
+  if (food.source === "TACO") {
+    result.push(
+      ...(HOUSEHOLD[food.name] ?? []).map((m) => ({ ...m, sourceUrl: MEASURE_SOURCE_URL })),
+    );
+    result.push(...(ADDITIONAL_HOUSEHOLD[food.name] ?? []));
+  }
   return result;
 }
 

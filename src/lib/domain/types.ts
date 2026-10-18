@@ -115,7 +115,7 @@ export interface KetoneReading {
 
 export interface Food {
   portion_amount?: number | undefined;
-  portion_unit?: "g" | "ml" | "colher" | "colher_sopa" | "concha" | undefined;
+  portion_unit?: import("../portion-units").PortionUnit | undefined;
   portion_grams?: number | undefined;
   id: string;
   patient_id: string | null;

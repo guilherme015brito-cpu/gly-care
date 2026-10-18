@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PORTION_UNIT_IDS } from "./portion-units";
 import type { ClinicalSettings } from "./domain/types";
 import { foodMeasures, measureGrams } from "./food-measures";
 import { computeItem, sumItems } from "./nutrition";
@@ -19,9 +20,9 @@ const foodSchema = z.object({
   kcal_per_100g: nutrient,
   edible_portion_pct: z.number().positive().max(100),
   is_favorite: z.boolean(),
-  portion_amount: z.number().positive().optional(),
-  portion_grams: z.number().positive().optional(),
-  portion_unit: z.enum(["g", "ml", "colher", "colher_sopa", "concha"]).optional(),
+  portion_amount: z.number().finite().positive().max(5000).optional(),
+  portion_grams: z.number().finite().positive().max(5000).optional(),
+  portion_unit: z.enum(PORTION_UNIT_IDS).optional(),
 });
 const itemSchema = z
   .object({
