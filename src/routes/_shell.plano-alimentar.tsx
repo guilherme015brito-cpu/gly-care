@@ -1,3 +1,4 @@
+import { FoodPortion } from "@/components/food-portion";
 import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -498,6 +499,24 @@ function MealCard({
                   ))}
                 </select>
               </Field>
+            </div>
+            <div className="pl-8">
+              <FoodPortion
+                food={item.food}
+                measure={item.measure}
+                quantity={item.quantity}
+                disabled={disabled}
+                onChange={(food) =>
+                  onChange({
+                    ...meal,
+                    items: meal.items.map((i) =>
+                      i.id === item.id
+                        ? { ...i, food, measure: "registered-unit", quantity: "1" }
+                        : i,
+                    ),
+                  })
+                }
+              />
             </div>
           </li>
         ))}

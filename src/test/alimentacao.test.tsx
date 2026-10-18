@@ -489,3 +489,27 @@ describe("Alimentação with local TACO", () => {
     },
   );
 });
+it("restores an applied custom yogurt measure in the unfinished meal draft", async () => {
+  setMode("demo");
+  render(<FoodPage />, { wrapper });
+  await add("Iogurte, natural", "100");
+  fireEvent.click(screen.getByText("Personalizar medida"));
+  fireEvent.change(screen.getByLabelText("Peso de 1 medida (g)"), { target: { value: "-1" } });
+  expect(screen.getByRole("button", { name: "Aplicar medida" })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Peso de 1 medida (g)"), { target: { value: "83" } });
+  fireEvent.click(screen.getByRole("button", { name: "Aplicar medida" }));
+  fireEvent.change(screen.getByLabelText("Quantidade de Iogurte, natural"), {
+    target: { value: "2" },
+  });
+  expect(screen.getByText(/166 g no total/)).toBeInTheDocument();
+  await waitFor(() =>
+    expect(localStorage.getItem("glycare-meal-draft-v1:demo:demo:demo-patient")).toContain(
+      '"portion_grams":83',
+    ),
+  );
+  cleanup();
+  render(<FoodPage />, { wrapper });
+  expect(await screen.findByLabelText("Medida de Iogurte, natural")).toHaveValue("registered-unit");
+  expect(screen.getByLabelText("Quantidade de Iogurte, natural")).toHaveValue("2");
+  expect(screen.getByText(/166 g no total/)).toBeInTheDocument();
+});

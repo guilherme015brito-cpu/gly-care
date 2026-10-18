@@ -1,3 +1,4 @@
+import { FoodPortion } from "@/components/food-portion";
 import { InjectionSiteField } from "@/components/glycare/InjectionSiteField";
 import type { InjectionSite } from "@/lib/injection-sites";
 import { useMealDraftError, useMealDraftScope, useMealDraftState } from "@/hooks/use-meal-draft";
@@ -593,7 +594,14 @@ function MealComposer() {
                       onChange={(e) =>
                         setLines(
                           lines.map((l) =>
-                            l.key === line.key ? { ...l, measure: e.target.value, grams: "" } : l,
+                            l.key === line.key
+                              ? {
+                                  ...l,
+                                  measure: e.target.value,
+                                  grams: "",
+                                  includesInedible: false,
+                                }
+                              : l,
                           ),
                         )
                       }
@@ -610,18 +618,33 @@ function MealComposer() {
                       </span>
                     )}
                   </div>
-                  {line.measure && line.measure !== "g" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {foodMeasures(line.food).find((m) => m.id === line.measure)?.source} ·{" "}
-                      {item ? fmtNum(item.grams) + " g no total" : "Informe a quantidade"}
-                    </p>
-                  )}
+                  <FoodPortion
+                    food={line.food}
+                    measure={line.measure ?? "g"}
+                    quantity={line.grams}
+                    disabled={readOnly}
+                    onChange={(food) =>
+                      setLines(
+                        lines.map((l) =>
+                          l.key === line.key
+                            ? {
+                                ...l,
+                                food,
+                                measure: "registered-unit",
+                                grams: "1",
+                                includesInedible: false,
+                              }
+                            : l,
+                        ),
+                      )
+                    }
+                  />
                   {error && line.grams !== "" && (
                     <p role="alert" className="mt-1 text-sm text-destructive">
                       {error}
                     </p>
                   )}
-                  {line.food.edible_portion_pct < 100 && (
+                  {(line.measure ?? "g") === "g" && line.food.edible_portion_pct < 100 && (
                     <label className="mt-2 flex items-center gap-2 text-sm">
                       <Checkbox
                         checked={line.includesInedible}

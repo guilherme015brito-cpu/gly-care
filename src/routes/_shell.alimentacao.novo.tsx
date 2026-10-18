@@ -169,7 +169,7 @@ function NewFood() {
               id="portion-mass"
               label="Peso dessa porção (g)"
               error={errors["portion_grams"]}
-              hint="Use o peso medido ou indicado pelo fabricante. O peso de 200 ml depende do alimento; não presumimos que seja 200 g."
+              hint="Use o peso da parte comestível, medido ou do rótulo. Ex.: 2 fatias = 50 g. Para ml, informe o peso: volume não equivale automaticamente a gramas."
             >
               <Input
                 id="portion-mass"
